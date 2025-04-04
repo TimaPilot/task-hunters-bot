@@ -1,4 +1,5 @@
 import discord
+import logging
 from discord.ext import commands
 from discord.ui import View, Button
 from dotenv import load_dotenv
@@ -159,6 +160,8 @@ class FinishButtonView(View):
     def __init__(self, order_id: int):
         super().__init__(timeout=None)
         self.add_item(Button(label="🏁 Виконано", style=discord.ButtonStyle.secondary, custom_id=f"finish_{order_id}"))
+
+logging.basicConfig(level=logging.DEBUG)
 
 async def main():
     load_dotenv()
