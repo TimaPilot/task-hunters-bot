@@ -14,6 +14,11 @@ from db_logger import (
 )
 import datetime
 
+logging.basicConfig(
+    level=logging.DEBUG,  # INFO, WARNING, ERROR — міняй якщо буде забагато шуму
+    format="%(asctime)s [%(levelname)s] %(message)s"
+)
+
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
@@ -23,6 +28,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 @bot.event
 async def on_ready():
     print(f"✅ Logged in as {bot.user}")
+    bot.add_view(ResourceButtonsView())
 
 @bot.command()
 async def start(ctx):
@@ -53,6 +59,7 @@ async def my_orders(ctx):
 
 @bot.event
 async def on_interaction(interaction: discord.Interaction):
+    print("📩 Interaction received:", interaction.data)
     if interaction.type == discord.InteractionType.component:
         user = interaction.user
         custom_id = interaction.data["custom_id"]
@@ -149,7 +156,12 @@ class ResourceButtonsView(View):
 class AcceptButtonView(View):
     def __init__(self, order_id: int):
         super().__init__(timeout=None)
+        self.order_id = order_id
         self.add_item(Button(label="✅ Прийняти замовлення", style=discord.ButtonStyle.success, custom_id=f"accept_{order_id}"))
+
+    @classmethod
+    def is_persistent(cls):
+        return True
 
 class ReadyButtonView(View):
     def __init__(self, order_id: int):
@@ -169,4 +181,7 @@ async def main():
     TOKEN = os.getenv("DISCORD_TOKEN")
     await bot.start(TOKEN)
 
-asyncio.run(main())
+try:
+    asyncio.run(main())
+except Exception as e:
+    logging.exception("❌ Бот звалився з помилкою:")
