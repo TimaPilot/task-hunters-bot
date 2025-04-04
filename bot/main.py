@@ -148,7 +148,7 @@ async def on_interaction(interaction: discord.Interaction):
 
             notify_channel = discord.utils.get(interaction.guild.text_channels, name="📝-зробити-замовлення")
             if notify_channel:
-                await notify_channel.send(f"📦 Мисливець зібрав {order['details']} і зв’яжеться з Вами для зустрічі, {customer.mention}!")
+                await notify_channel.send(f" {customer.mention}, 📦 Ваш {order['details']} вже в рюкзаку мисливця! З Вами зараз зв'яжуться для узгодження місця зустрічі 📍")
 
             await interaction.response.edit_message(
                 content="📦 Замовлення зібране.",
@@ -172,7 +172,8 @@ async def on_interaction(interaction: discord.Interaction):
 
             notify_channel = discord.utils.get(interaction.guild.text_channels, name="📝-зробити-замовлення")
             if notify_channel:
-                await notify_channel.send(f"🏁 Замовлення виконане! Дякуємо, {customer.mention} ❤️")
+                await notify_channel.send(f"{customer.mention}, ваше замовлення було позначено як **виконане**. Дякуємо, що скористались нашими послугами!")
+                await notify_channel.send(f"💬 Будемо раді бачити Ваш відгук в каналі <#1356362829099303160>!")
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
