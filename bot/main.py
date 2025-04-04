@@ -18,6 +18,25 @@ intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+ # 🌍 Reverse mapping: для зручності визначення ключа ресурсу
+resource_reverse = {
+"🪨 Камінь": "stone",
+"🌲 Дерево": "wood",          
+"🐟 Риба": "fish",          
+"🍄 Гриби": "mushrooms",
+"🧴 Миючі засоби": "cleaner"            
+}
+
+# ⏱️ Орієнтовний час виконання для кожного ресурсу
+estimated_times = {
+"stone": "30–60 хв",
+"wood": "15–20 хв",
+"fish": "25–35 хв",
+"mushrooms": "30 хв",
+"cleaner": "20–25 хв"
+}
+
+
 @bot.event
 async def on_ready():
     print(f"✅ Logged in as {bot.user}")
@@ -133,7 +152,13 @@ async def on_interaction(interaction: discord.Interaction):
             update_order_status_by_id(order_id, "В роботі", hunter_name=hunter.name)
             notify_channel = discord.utils.get(interaction.guild.text_channels, name="📝-зробити-замовлення")
             if notify_channel:
-                await notify_channel.send(f"{customer.mention}, Ваше замовлення на {resource} прийняв {hunter.mention}! ⏳ Очікуйте.")
+                resource_key = resource_reverse.get(resource, "unknown")
+                eta = estimated_times.get(resource_key, "20–30 хв")
+
+                await notify_channel.send(
+                    f"{customer.mention}, Ваше замовлення на {resource} прийняв {hunter.mention}! 🕒 Орієнтовний час виконання — {eta}!"
+                )
+
 
         elif cid.startswith("ready_"):
             order_id = int(cid.replace("ready_", ""))
@@ -148,12 +173,19 @@ async def on_interaction(interaction: discord.Interaction):
 
             notify_channel = discord.utils.get(interaction.guild.text_channels, name="📝-зробити-замовлення")
             if notify_channel:
-                await notify_channel.send(f" {customer.mention}, 📦 Ваш {order['details']} вже в рюкзаку мисливця! З Вами зараз зв'яжуться для узгодження місця зустрічі 📍")
+                if "камінь" in order["details"].lower():
+                 await notify_channel.send(
+                    f"{customer.mention}, 🪨 Ваш камінь готовий! Мисливець очікує Вас на кар'єрі.\n💡 Звільніть інвентар заздалегідь — буде важко!"
+                    )
+            else:
+                await notify_channel.send(
+                    f"{customer.mention}, 📦 Ваш {order['details']} вже в рюкзаку мисливця! З Вами зараз зв'яжуться для узгодження місця зустрічі 📍"
+                    )
 
-            await interaction.response.edit_message(
-                content="📦 Замовлення зібране.",
-                view=OrderProgressView(customer, "resource", order_id, stage="ready")
-            )
+                await interaction.response.edit_message(
+                    content="📦 Замовлення зібране.",
+                    view=OrderProgressView(customer, "resource", order_id, stage="ready")
+                )
 
         elif cid.startswith("finish_"):
             order_id = int(cid.replace("finish_", ""))
