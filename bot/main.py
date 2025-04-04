@@ -131,7 +131,7 @@ async def on_interaction(interaction: discord.Interaction):
             )
 
             update_order_status_by_id(order_id, "В роботі", hunter_name=hunter.name)
-            notify_channel = discord.utils.get(interaction.guild.text_channels, name="зробити-замовлення")
+            notify_channel = discord.utils.get(interaction.guild.text_channels, name="📝-зробити-замовлення")
             if notify_channel:
                 await notify_channel.send(f"{customer.mention}, Ваше замовлення на {resource} прийняв {hunter.mention}! ⏳ Очікуйте.")
 
@@ -146,7 +146,7 @@ async def on_interaction(interaction: discord.Interaction):
                 await interaction.response.send_message("❌ Не вдалося знайти замовника по ID.", ephemeral=True)
                 return
 
-            notify_channel = discord.utils.get(interaction.guild.text_channels, name="зробити-замовлення")
+            notify_channel = discord.utils.get(interaction.guild.text_channels, name="📝-зробити-замовлення")
             if notify_channel:
                 await notify_channel.send(f"📦 Мисливець зібрав {order['details']} і зв’яжеться з Вами для зустрічі, {customer.mention}!")
 
@@ -170,7 +170,7 @@ async def on_interaction(interaction: discord.Interaction):
 
             await interaction.response.edit_message(content="🏁 Замовлення виконано.", view=None)
 
-            notify_channel = discord.utils.get(interaction.guild.text_channels, name="зробити-замовлення")
+            notify_channel = discord.utils.get(interaction.guild.text_channels, name="📝-зробити-замовлення")
             if notify_channel:
                 await notify_channel.send(f"🏁 Замовлення виконане! Дякуємо, {customer.mention} ❤️")
 
