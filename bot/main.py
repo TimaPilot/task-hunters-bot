@@ -15,6 +15,7 @@ import datetime
 
 intents = discord.Intents.default()
 intents.message_content = True
+intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -82,9 +83,9 @@ async def on_interaction(interaction: discord.Interaction):
                 await interaction.response.send_message("❌ Канал `✅-виконання-замовлень` не знайдено.", ephemeral=True)
                 return
 
-            msg = await hunters_channel.send(
+            await hunters_channel.send(
                 f"🆕 Надійшло нове замовлення на **{selected}** від {user.mention}",
-                view=AcceptOrderView(order_id)
+                view=AcceptButtonView(order_id)
             )
             await interaction.response.send_message(
                 f"📨 Ваш запит на **{selected}** успішно зареєстровано. Очікуйте підтвердження.",
@@ -94,17 +95,44 @@ async def on_interaction(interaction: discord.Interaction):
         elif custom_id.startswith("accept_"):
             order_id = int(custom_id.split("_")[1])
             await update_order_status_by_id(order_id, "В роботі", user.name)
+            order = await get_order_by_id(order_id)
+
+            target_channel = discord.utils.get(interaction.guild.text_channels, name="зробити-замовлення")
+            if target_channel:
+                await target_channel.send(
+                    f"✅ Мисливець {user.mention} прийняв Ваше замовлення на **{order['details']}**\nОрієнтовний час очікування — 20–25 хв."
+                )
+
+            await interaction.message.edit(view=ReadyButtonView(order_id))
             await interaction.response.send_message(f"🛠️ Ви прийняли замовлення #{order_id}", ephemeral=True)
 
         elif custom_id.startswith("ready_"):
             order_id = int(custom_id.split("_")[1])
             await update_order_status_by_id(order_id, "Готове", user.name)
-            await interaction.response.send_message(f"📦 Ви позначили замовлення #{order_id} як готове", ephemeral=True)
+            order = await get_order_by_id(order_id)
+            target_channel = discord.utils.get(interaction.guild.text_channels, name="зробити-замовлення")
+            if target_channel:
+                if "камінь" in order['details'].lower():
+                    await target_channel.send(
+                        f"🪨 Мисливець зібрав Ваше замовлення і очікує Вас на кар'єрі!"
+                    )
+                else:
+                    await target_channel.send(
+                        f"📦 Мисливець зібрав Ваше замовлення. Найближчим часом зв’яжеться з Вами, щоб узгодити місце зустрічі!"
+                    )
+            await interaction.message.edit(view=FinishButtonView(order_id))
+            await interaction.response.send_message(f"📦 Ви позначили замовлення #{order_id} як зібране", ephemeral=True)
 
         elif custom_id.startswith("finish_"):
             order_id = int(custom_id.split("_")[1])
             await update_order_status_by_id(order_id, "Виконано", user.name)
-            await interaction.response.send_message(f"✅ Ви завершили замовлення #{order_id}", ephemeral=True)
+            order = await get_order_by_id(order_id)
+            target_channel = discord.utils.get(interaction.guild.text_channels, name="зробити-замовлення")
+            if target_channel:
+                await target_channel.send(
+                    f"🏁 Мисливець позначив Ваше замовлення як **виконане**!\nДякуємо, що скористались нашими послугами ❤️\nВи можете залишити відгук у #📨-відгуки"
+                )
+            await interaction.response.send_message(f"✅ Замовлення #{order_id} завершено", ephemeral=True)
 
 class ResourceButtonsView(View):
     def __init__(self):
@@ -115,12 +143,20 @@ class ResourceButtonsView(View):
         self.add_item(Button(label="🍄 Гриби", style=discord.ButtonStyle.secondary, custom_id="mushrooms"))
         self.add_item(Button(label="🧴 Миючі засоби", style=discord.ButtonStyle.secondary, custom_id="cleaner"))
 
-class AcceptOrderView(View):
+class AcceptButtonView(View):
     def __init__(self, order_id: int):
         super().__init__(timeout=None)
-        self.add_item(Button(label="✅ Прийняти", style=discord.ButtonStyle.success, custom_id=f"accept_{order_id}"))
-        self.add_item(Button(label="📦 Готове", style=discord.ButtonStyle.primary, custom_id=f"ready_{order_id}"))
-        self.add_item(Button(label="🏁 Завершити", style=discord.ButtonStyle.secondary, custom_id=f"finish_{order_id}"))
+        self.add_item(Button(label="✅ Прийняти замовлення", style=discord.ButtonStyle.success, custom_id=f"accept_{order_id}"))
+
+class ReadyButtonView(View):
+    def __init__(self, order_id: int):
+        super().__init__(timeout=None)
+        self.add_item(Button(label="📦 Зібрано", style=discord.ButtonStyle.primary, custom_id=f"ready_{order_id}"))
+
+class FinishButtonView(View):
+    def __init__(self, order_id: int):
+        super().__init__(timeout=None)
+        self.add_item(Button(label="🏁 Виконано", style=discord.ButtonStyle.secondary, custom_id=f"finish_{order_id}"))
 
 async def main():
     load_dotenv()
