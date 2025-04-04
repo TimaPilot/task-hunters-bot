@@ -116,7 +116,7 @@ class ResourceButtonsView(View):
         self.add_item(Button(label="🧴 Миючі засоби", style=discord.ButtonStyle.secondary, custom_id="cleaner"))
 
 class AcceptOrderView(View):
-    def __init__(self, order_id):
+    def __init__(self, order_id: int):
         super().__init__(timeout=None)
         self.add_item(Button(label="✅ Прийняти", style=discord.ButtonStyle.success, custom_id=f"accept_{order_id}"))
         self.add_item(Button(label="📦 Готове", style=discord.ButtonStyle.primary, custom_id=f"ready_{order_id}"))
