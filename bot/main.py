@@ -94,6 +94,7 @@ async def on_interaction(interaction: discord.Interaction):
 
         elif custom_id.startswith("accept_"):
             order_id = int(custom_id.split("_")[1])
+            await interaction.response.defer(ephemeral=True)  # 👉 Це важливо!
             await update_order_status_by_id(order_id, "В роботі", user.name)
             order = await get_order_by_id(order_id)
 
@@ -104,7 +105,8 @@ async def on_interaction(interaction: discord.Interaction):
                 )
 
             await interaction.message.edit(view=ReadyButtonView(order_id))
-            await interaction.response.send_message(f"🛠️ Ви прийняли замовлення #{order_id}", ephemeral=True)
+            await interaction.followup.send(f"🛠️ Ви прийняли замовлення #{order_id}", ephemeral=True)
+
 
         elif custom_id.startswith("ready_"):
             order_id = int(custom_id.split("_")[1])
