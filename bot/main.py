@@ -182,10 +182,11 @@ async def on_interaction(interaction: discord.Interaction):
                     f"{customer.mention}, 📦 Ваш {order['details']} вже в рюкзаку мисливця! З Вами зараз зв'яжуться для узгодження місця зустрічі 📍"
                     )
 
-                await interaction.response.edit_message(
+                await interaction.edit_original_response(
                     content="📦 Замовлення зібране.",
                     view=OrderProgressView(customer, "resource", order_id, stage="ready")
                 )
+
 
         elif cid.startswith("finish_"):
             order_id = int(cid.replace("finish_", ""))
