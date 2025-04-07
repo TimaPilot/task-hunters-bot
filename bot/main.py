@@ -170,28 +170,28 @@ async def on_interaction(interaction: discord.Interaction):
             order = get_order_by_id(order_id)
             customer_id = order["customer_id"]
 
-            try:
-                customer = await interaction.guild.fetch_member(customer_id)
+            customer = await interaction.guild.fetch_member(customer_id)
 
-                notify_channel = discord.utils.get(interaction.guild.text_channels, name="📮-зробити-замовлення")
-                if notify_channel:
-                    if "камінь" in order["details"].lower():
-                        await notify_channel.send(
-                            f"{customer.mention}, 🪨 Ваш камінь готовий! Мисливець очікує Вас на кар'єрі.\n💡 Звільніть інвентар заздалегідь — буде важко!"
-                        )
-                    else:
-                        await notify_channel.send(
-                            f"{customer.mention}, 📦 Ваш {order['details']} вже в рюкзаку мисливця! 📍 Вами зараз зв’яжуться для узгодження місця зустрічі"
-                        )
+            notify_channel = discord.utils.get(
+                interaction.guild.text_channels,
+                name="📝-зробити-замовлення"
+            )
 
-                await interaction.edit_original_response(
-                    content="✅ Замовлення зібране.",
-                    view=OrderProgressView(customer, "resource", order_id, stage="ready")
-                )
+            if notify_channel:
+                if "камінь" in order["details"].lower():
+                    await notify_channel.send(
+                        f"{customer.mention}, 🪨 Ваш камінь готовий! Мисливець очікує Вас на кар'єрі.\n💡 Звільніть інвентар заздалегідь — буде важко!"
+                    )
+                else:
+                    await notify_channel.send(
+                        f"{customer.mention}, 📦 Ваш {order['details']} вже в рюкзаку мисливця! 📍 Вами зараз зв’яжуться для узгодження місця зустрічі"
+                    )
 
-            except Exception as e:
-                log_error(f"❌ Помилка у ready_: {str(e)}")
-                log_error(traceback.format_exc())
+            await interaction.response.send_message(
+                "📦 Замовлення зібране! Замовнику надіслано повідомлення.",
+                ephemeral=True
+            )
+
 
 
         elif cid.startswith("finish_"):
