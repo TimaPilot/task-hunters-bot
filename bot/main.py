@@ -11,6 +11,11 @@ from order_logger import (
     get_orders_by_user,
     load_orders
 )
+import traceback
+
+def log_error(error_text):
+    with open("error_log.txt", "a", encoding="utf-8") as f:
+        f.write(error_text + "\n")
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -166,27 +171,25 @@ async def on_interaction(interaction: discord.Interaction):
             customer_id = order["customer_id"]
 
             try:
-                customer = await interaction.guild.fetch_member(customer_id)
-            except:
-                await interaction.response.send_message("❌ Не вдалося знайти замовника по ID.", ephemeral=True)
-                return
-
-            notify_channel = discord.utils.get(interaction.guild.text_channels, name="📝-зробити-замовлення")
-            if notify_channel:
-                if "камінь" in order["details"].lower():
-                 await notify_channel.send(
-                    f"{customer.mention}, 🪨 Ваш камінь готовий! Мисливець очікує Вас на кар'єрі.\n💡 Звільніть інвентар заздалегідь — буде важко!"
-                    )
-            else:
-                await notify_channel.send(
-                    f"{customer.mention}, 📦 Ваш {order['details']} вже в рюкзаку мисливця! З Вами зараз зв'яжуться для узгодження місця зустрічі 📍"
-                    )
+                notify_channel = discord.utils.get(interaction.guild.text_channels, name="📮-зробити-замовлення")
+                if notify_channel:
+                    if "камінь" in order["details"].lower():
+                        await notify_channel.send(
+                            f"{customer.mention}, 🪨 Ваш камінь готовий! Мисливець очікує Вас на кар'єрі.\n💡 Звільніть інвентар заздалегідь — буде важко!"
+                        )
+                    else:
+                        await notify_channel.send(
+                            f"{customer.mention}, 📦 Ваш {order['details']} вже в рюкзаку мисливця! 📍 Вами зараз зв’яжуться для узгодження місця зустрічі"
+                        )
 
                 await interaction.edit_original_response(
-                    content="📦 Замовлення зібране.",
+                    content="✅ Замовлення зібране.",
                     view=OrderProgressView(customer, "resource", order_id, stage="ready")
                 )
-
+            except Exception as e:
+                log_error(f"Помилка при оновленні кнопки 'зібрав': {str(e)}")
+                log_error(traceback.format_exc())
+                
 
         elif cid.startswith("finish_"):
             order_id = int(cid.replace("finish_", ""))
