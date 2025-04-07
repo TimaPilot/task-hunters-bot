@@ -113,7 +113,7 @@ async def on_interaction(interaction: discord.Interaction):
         cid = interaction.data["custom_id"]
 
         if cid == "order_service":
-            await interaction.response.send_message("🛒 Вибери ресурс для замовлення:", view=ResourceButtonsView(), ephemeral=True)
+            await interaction.response.send_message("🛒 Вибери ресурс для замовлення:", view=ResourceButtonsView(), ephemeral=False)
 
         elif cid in ["stone", "wood", "fish", "mushrooms", "cleaner"]:
             resource_names = {
@@ -134,6 +134,7 @@ async def on_interaction(interaction: discord.Interaction):
                 "status": "Очікує"
             }
             order_id = save_order_to_json(order_data)
+            await interaction.message.delete()
             channel = discord.utils.get(interaction.guild.text_channels, name="✅-виконання-замовлень")
             if channel:
                 await channel.send(
@@ -193,7 +194,7 @@ async def on_interaction(interaction: discord.Interaction):
                     )
                 else:
                     await notify_channel.send(
-                        f"{customer.mention}, 📦 Ваш {resource} вже в рюкзаку мисливця! 📍 Вами зараз зв’яжуться для узгодження місця зустрічі"
+                        f"{customer.mention}, 📦 Ваш {resource} вже в рюкзаку мисливця! 📍З Вами зараз зв’яжуться для узгодження місця зустрічі"
                     )
 
             # 🛠️ Оновлюємо повідомлення з кнопкою
