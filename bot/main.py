@@ -169,27 +169,30 @@ async def on_interaction(interaction: discord.Interaction):
             order_id = int(cid.replace("ready_", ""))
             order = get_order_by_id(order_id)
             customer_id = order["customer_id"]
-
             customer = await interaction.guild.fetch_member(customer_id)
+            resource = order["details"]
+            resource_key = resource_reverse.get(resource, "unknown")
 
             notify_channel = discord.utils.get(
                 interaction.guild.text_channels,
                 name="📝-зробити-замовлення"
             )
 
+            # 📨 Надсилаємо повідомлення замовнику
             if notify_channel:
-                if "камінь" in order["details"].lower():
+                if "камінь" in resource.lower():
                     await notify_channel.send(
                         f"{customer.mention}, 🪨 Ваш камінь готовий! Мисливець очікує Вас на кар'єрі.\n💡 Звільніть інвентар заздалегідь — буде важко!"
                     )
                 else:
                     await notify_channel.send(
-                        f"{customer.mention}, 📦 Ваш {order['details']} вже в рюкзаку мисливця! 📍 Вами зараз зв’яжуться для узгодження місця зустрічі"
+                        f"{customer.mention}, 📦 Ваш {resource} вже в рюкзаку мисливця! 📍 Вами зараз зв’яжуться для узгодження місця зустрічі"
                     )
 
-            await interaction.response.send_message(
-                "📦 Замовлення зібране! Замовнику надіслано повідомлення.",
-                ephemeral=True
+            # 🛠️ Оновлюємо повідомлення з кнопкою
+            await interaction.response.edit_message(
+                content="📦 Замовлення зібране! Замовнику надіслано повідомлення.",
+                view=OrderProgressView(customer, resource_key, order_id, stage="ready")
             )
 
 
