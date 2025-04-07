@@ -97,7 +97,7 @@ class OrderProgressView(View):
             self.add_item(Button(label="📦 Зібрано", style=discord.ButtonStyle.primary, custom_id=f"ready_{order_id}"))
 
         elif stage == "ready":
-            self.add_item(Button(label="🏁 Виконано", style=discord.ButtonStyle.secondary, custom_id=f"finish_{order_id}"))
+            self.add_item(Button(label="✅ Завершено", style=discord.ButtonStyle.secondary, custom_id=f"finish_{order_id}"))
 
 @bot.event
 async def on_interaction(interaction: discord.Interaction):
@@ -197,34 +197,32 @@ async def on_interaction(interaction: discord.Interaction):
 
 
         elif cid.startswith("finish_"):
-                if interaction.user.bot:
-                    return
+            if interaction.user.bot:
+                return
 
-                order_id = int(cid.replace("finish_", ""))
-                order = get_order_by_id(order_id)
-                customer_id = order["customer_id"]
+            order_id = int(cid.replace("finish_", ""))
+            order = get_order_by_id(order_id)
+            customer_id = order["customer_id"]
+            customer = await interaction.guild.fetch_member(customer_id)
 
-                try:
-                    customer = await interaction.guild.fetch_member(customer_id)
-                except:
-                    await interaction.response.send_message("❌ Не вдалося знайти замовника по ID.", ephemeral=True)
-                    return
+            # Оновлюємо статус
+            update_order_status_by_id(order_id, "Виконано", hunter_name=user.name)
 
-                # Оновлюємо статус у json або БД
-                update_order_status_by_id(order_id, "Виконано", hunter_name=user.name)
+            # Повідомлення в тому ж повідомленні
+            await interaction.response.edit_message(
+                content="✅ Замовлення виконано.",
+                view=None
+            )
 
-                # Відповідь мисливцю
-                await interaction.response.send_message("🏁 Замовлення виконано. Дякуємо!", ephemeral=True)
-
-                # Повідомлення замовнику
-                notify_channel = discord.utils.get(interaction.guild.text_channels, name="📮-зробити-замовлення")
-                if notify_channel:
-                    await notify_channel.send(
-                        f"{customer.mention}, ваше замовлення було позначене як **виконане**. Дякуємо, що скористались нашими послугами!"
-                    )
-                    await notify_channel.send(
-                        f"💬 Будемо раді бачити Ваш відгук в каналі <#1356362829099303160>!"
-                    )
+            # Надішлемо сповіщення в загальний канал
+            notify_channel = discord.utils.get(interaction.guild.text_channels, name="📝-зробити-замовлення")
+            if notify_channel:
+                await notify_channel.send(
+                    f"{customer.mention}, Ваше замовлення було позначено як **виконане**. Дякуємо, що скористались нашими послугами! 🤎"
+                )
+                await notify_channel.send(
+                    "💬 Будемо раді бачити Ваш відгук в каналі <#1356362829099303160>!"
+                )
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
