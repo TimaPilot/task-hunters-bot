@@ -193,26 +193,35 @@ async def on_interaction(interaction: discord.Interaction):
             )
 
 
-
         elif cid.startswith("finish_"):
-            order_id = int(cid.replace("finish_", ""))
-            order = get_order_by_id(order_id)
-            customer_id = order["customer_id"]
+                if interaction.user.bot:
+                    return
 
-            try:
-                customer = await interaction.guild.fetch_member(customer_id)
-            except:
-                await interaction.response.send_message("❌ Не вдалося знайти замовника.", ephemeral=True)
-                return
+                order_id = int(cid.replace("finish_", ""))
+                order = get_order_by_id(order_id)
+                customer_id = order["customer_id"]
 
-            update_order_status_by_id(order_id, "Виконано", hunter_name=user.name)
+                try:
+                    customer = await interaction.guild.fetch_member(customer_id)
+                except:
+                    await interaction.response.send_message("❌ Не вдалося знайти замовника по ID.", ephemeral=True)
+                    return
 
-            await interaction.response.edit_message(content="🏁 Замовлення виконано.", view=None)
+                # Оновлюємо статус у json або БД
+                update_order_status_by_id(order_id, "Виконано", hunter_name=user.name)
 
-            notify_channel = discord.utils.get(interaction.guild.text_channels, name="📝-зробити-замовлення")
-            if notify_channel:
-                await notify_channel.send(f"{customer.mention}, ваше замовлення було позначено як **виконане**. Дякуємо, що скористались нашими послугами!")
-                await notify_channel.send(f"💬 Будемо раді бачити Ваш відгук в каналі <#1356362829099303160>!")
+                # Відповідь мисливцю
+                await interaction.response.send_message("🏁 Замовлення виконано. Дякуємо!", ephemeral=True)
+
+                # Повідомлення замовнику
+                notify_channel = discord.utils.get(interaction.guild.text_channels, name="📮-зробити-замовлення")
+                if notify_channel:
+                    await notify_channel.send(
+                        f"{customer.mention}, ваше замовлення було позначене як **виконане**. Дякуємо, що скористались нашими послугами!"
+                    )
+                    await notify_channel.send(
+                        f"💬 Будемо раді бачити Ваш відгук в каналі <#1356362829099303160>!"
+                    )
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
