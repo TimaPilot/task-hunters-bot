@@ -132,11 +132,11 @@ async def on_interaction(interaction: discord.Interaction):
             order_data = {
                 "customer": user.name,
                 "customer_id": user.id,
-                "type": "Доставка ресурсу",
                 "details": selected,
                 "hunter": None,
                 "status": "Очікує"
             }
+
             order_id = await save_order_to_db(order_data)
             await interaction.message.delete()
             channel = discord.utils.get(interaction.guild.text_channels, name="✅-виконання-замовлень")
