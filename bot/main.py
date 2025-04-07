@@ -9,7 +9,9 @@ from db_logger import (
     update_order_status_by_id,
     get_order_by_id,
     get_orders_by_user,
-    init_db
+    init_db,
+    mark_order_accepted,
+    mark_order_collected
 )
 
 import traceback
@@ -164,7 +166,7 @@ async def on_interaction(interaction: discord.Interaction):
                 view=OrderProgressView(customer, cid.split("_")[2], order_id, stage="accepted")
             )
 
-            update_order_status_by_id(order_id, "В роботі", hunter_name=hunter.name)
+            await mark_order_accepted(order_id, hunter.name)
             notify_channel = discord.utils.get(interaction.guild.text_channels, name="📝-зробити-замовлення")
             if notify_channel:
                 resource_key = resource_reverse.get(resource, "unknown")
@@ -182,6 +184,8 @@ async def on_interaction(interaction: discord.Interaction):
             customer = await interaction.guild.fetch_member(customer_id)
             resource = order["details"]
             resource_key = resource_reverse.get(resource, "unknown")
+
+            await mark_order_collected(order_id)
 
             notify_channel = discord.utils.get(
                 interaction.guild.text_channels,

@@ -13,6 +13,8 @@ async def get_connection():
 # Ініціалізація таблиці (один раз при запуску)
 async def init_db():
     conn = await get_connection()
+
+    # Створюємо таблицю, якщо ще не існує
     await conn.execute("""
         CREATE TABLE IF NOT EXISTS orders (
             id SERIAL PRIMARY KEY,
@@ -26,6 +28,16 @@ async def init_db():
             finished_at TIMESTAMP
         );
     """)
+
+    # Додаємо стовпці, якщо ще не існують
+    for column, col_type in [("accepted_at", "TIMESTAMP"), ("collected_at", "TIMESTAMP")]:
+        exists = await conn.fetchval("""
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name='orders' AND column_name=$1;
+        """, column)
+        if not exists:
+            await conn.execute(f"ALTER TABLE orders ADD COLUMN {column} {col_type};")
+
     await conn.close()
 
 # Зберегти замовлення
@@ -69,3 +81,22 @@ async def get_order_by_id(order_id):
     row = await conn.fetchrow("SELECT * FROM orders WHERE id=$1;", order_id)
     await conn.close()
     return dict(row) if row else None
+
+async def mark_order_accepted(order_id, hunter_name):
+    conn = await get_connection()
+    await conn.execute("""
+        UPDATE orders
+        SET status='В роботі', hunter=$1, accepted_at=NOW()
+        WHERE id=$2;
+    """, hunter_name, order_id)
+    await conn.close()
+
+async def mark_order_collected(order_id):
+    conn = await get_connection()
+    await conn.execute("""
+        UPDATE orders
+        SET status='Зібрано', collected_at=NOW()
+        WHERE id=$1;
+    """, order_id)
+    await conn.close()
+
