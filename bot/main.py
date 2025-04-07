@@ -4,13 +4,14 @@ from discord.ui import View, Button
 from dotenv import load_dotenv
 import os
 import datetime
-from order_logger import (
-    save_order_to_json,
+from db_logger import (
+    save_order_to_db,
     update_order_status_by_id,
     get_order_by_id,
     get_orders_by_user,
-    load_orders
+    init_db
 )
+
 import traceback
 
 def log_error(error_text):
@@ -44,6 +45,7 @@ estimated_times = {
 
 @bot.event
 async def on_ready():
+    await init_db()
     print(f"✅ Logged in as {bot.user}")
     bot.add_view(ResourceButtonsView())  # keep view alive after restart
 
@@ -66,7 +68,7 @@ async def start(ctx):
 @bot.command(name="моїзамовлення")
 async def my_orders(ctx):
     user_id = ctx.author.id
-    orders = get_orders_by_user(user_id)
+    orders = await get_orders_by_user(user_id)
 
     if not orders:
         await ctx.send("🔍 У вас поки немає замовлень.")
@@ -133,7 +135,7 @@ async def on_interaction(interaction: discord.Interaction):
                 "hunter": None,
                 "status": "Очікує"
             }
-            order_id = save_order_to_json(order_data)
+            order_id = await save_order_to_db(order_data)
             await interaction.message.delete()
             channel = discord.utils.get(interaction.guild.text_channels, name="✅-виконання-замовлень")
             if channel:
@@ -147,7 +149,7 @@ async def on_interaction(interaction: discord.Interaction):
 
         elif cid.startswith("accept_order_"):
             order_id = int(cid.replace("accept_order_", ""))
-            order = get_order_by_id(order_id)
+            order = await get_order_by_id(order_id)
             resource = order["details"]
             hunter = user
 
@@ -175,7 +177,7 @@ async def on_interaction(interaction: discord.Interaction):
 
         elif cid.startswith("ready_"):
             order_id = int(cid.replace("ready_", ""))
-            order = get_order_by_id(order_id)
+            order = await get_order_by_id(order_id)
             customer_id = order["customer_id"]
             customer = await interaction.guild.fetch_member(customer_id)
             resource = order["details"]
@@ -209,12 +211,12 @@ async def on_interaction(interaction: discord.Interaction):
                 return
 
             order_id = int(cid.replace("finish_", ""))
-            order = get_order_by_id(order_id)
+            order = await get_order_by_id(order_id)
             customer_id = order["customer_id"]
             customer = await interaction.guild.fetch_member(customer_id)
 
             # Оновлюємо статус
-            update_order_status_by_id(order_id, "Виконано", hunter_name=user.name)
+            await update_order_status_by_id(order_id, "Виконано", hunter_name=user.name)
 
             # Повідомлення в тому ж повідомленні
             await interaction.response.edit_message(
