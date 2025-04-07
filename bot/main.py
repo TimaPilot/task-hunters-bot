@@ -163,7 +163,6 @@ async def on_interaction(interaction: discord.Interaction):
                 await notify_channel.send(
                     f"{customer.mention}, Ваше замовлення на {resource} прийняв {hunter.mention}! 🕒 Орієнтовний час виконання — {eta}!"
                 )
-            log_error("🧪 Перевірка: лог працює!")
 
 
         elif cid.startswith("ready_"):
@@ -172,6 +171,8 @@ async def on_interaction(interaction: discord.Interaction):
             customer_id = order["customer_id"]
 
             try:
+                customer = await interaction.guild.fetch_member(customer_id)
+
                 notify_channel = discord.utils.get(interaction.guild.text_channels, name="📮-зробити-замовлення")
                 if notify_channel:
                     if "камінь" in order["details"].lower():
@@ -187,8 +188,9 @@ async def on_interaction(interaction: discord.Interaction):
                     content="✅ Замовлення зібране.",
                     view=OrderProgressView(customer, "resource", order_id, stage="ready")
                 )
+
             except Exception as e:
-                log_error(f"Помилка при оновленні кнопки 'зібрав': {str(e)}")
+                log_error(f"❌ Помилка у ready_: {str(e)}")
                 log_error(traceback.format_exc())
 
 
