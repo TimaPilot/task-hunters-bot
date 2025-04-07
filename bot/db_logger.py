@@ -31,12 +31,15 @@ async def init_db():
 # Зберегти замовлення
 async def save_order_to_db(order_data):
     conn = await get_connection()
-    await conn.execute("""
+    row = await conn.fetchrow("""
         INSERT INTO orders (customer, customer_id, type, details, hunter, status)
-        VALUES ($1, $2, $3, $4, $5, $6);
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING id;
     """, order_data["customer"], order_data["customer_id"], order_data["type"],
          order_data["details"], order_data["hunter"], order_data["status"])
     await conn.close()
+    return row["id"]
+
 
 # Отримати замовлення по ID користувача
 async def get_orders_by_user(user_id):
