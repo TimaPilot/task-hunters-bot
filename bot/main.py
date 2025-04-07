@@ -81,7 +81,9 @@ async def my_orders(ctx):
         ts = order['timestamp']
         if isinstance(ts, str):
             ts = datetime.datetime.fromisoformat(ts)
-        message += f"- `{ts}` {order['details']} — **{order['status']}**\n"
+
+        formatted_ts = ts.strftime("%Y-%m-%d %H:%M")  # формат виводу часу
+        message += f"- `{formatted_ts}` {order['details']} — **{order['status']}**\n"
 
     await ctx.send(message)
 
