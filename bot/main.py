@@ -163,6 +163,7 @@ async def on_interaction(interaction: discord.Interaction):
                 await notify_channel.send(
                     f"{customer.mention}, Ваше замовлення на {resource} прийняв {hunter.mention}! 🕒 Орієнтовний час виконання — {eta}!"
                 )
+            log_error("🧪 Перевірка: лог працює!")
 
 
         elif cid.startswith("ready_"):
@@ -189,7 +190,7 @@ async def on_interaction(interaction: discord.Interaction):
             except Exception as e:
                 log_error(f"Помилка при оновленні кнопки 'зібрав': {str(e)}")
                 log_error(traceback.format_exc())
-                
+
 
         elif cid.startswith("finish_"):
             order_id = int(cid.replace("finish_", ""))
