@@ -69,14 +69,14 @@ async def on_member_join(member):
 
     await channel.send(content=member.mention, embed=embed, file=file)
     
-    role = discord.utils.get(member.guild.roles, name="Замовник")
+    role = discord.utils.get(member.guild.roles, name="Замовник 💼")
 
     if role:
         # Видаємо роль учаснику
         await member.add_roles(role)
         print(f"Роль '{role.name}' видано користувачу {member.name}")
     else:
-        print("Роль 'Замовник' не знайдена!")
+        print("Роль 'Замовник 💼' не знайдена!")
 
 @bot.command()
 @commands.has_permissions(manage_messages=True)
