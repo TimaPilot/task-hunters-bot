@@ -64,7 +64,7 @@ async def ping(interaction: discord.Interaction):
     if interaction.user.id != OWNER_ID: 
         await interaction.response.send_message("⛔ Ця команда лише для капітана!", ephemeral=True)
         return
-    await interaction.response.send_message("🏓 Pong! Бот активний.")
+    await interaction.response.send_message("🏓 Pong! Бот активний.", ephemeral=True)
 
 @bot.event
 async def on_member_join(member):
