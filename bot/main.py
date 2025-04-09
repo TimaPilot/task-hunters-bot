@@ -50,7 +50,14 @@ estimated_times = {
 async def on_ready():
     await init_db()
     print(f"✅ Logged in as {bot.user}")
-    bot.add_view(ResourceButtonsView())  # keep view alive after restart
+    
+    try:
+        synced = await bot.tree.sync()
+        print(f"🔁 Slash-команди синхронізовано: {len(synced)}")
+    except Exception as e:
+        print("❌ Помилка при синхронізації слеш-команд:", e)
+
+    bot.add_view(ResourceButtonsView())
 
 @bot.tree.command(name="ping", description="Перевірка чи бот живий")
 async def ping(interaction: discord.Interaction):
