@@ -53,19 +53,16 @@ async def on_ready():
 
 @bot.event
 async def on_member_join(member):
-    channel = bot.get_channel(1359315250301894697)  # ID твого каналу
+    channel = bot.get_channel(1356270026688041171)  # ID твого каналу
 
-    file = discord.File(
-        r"C:\Users\Admin\Desktop\TH-Bot_Dev\images\Hello_v2.png",
-        filename="Hello_v2.png"
-    )
+    file = discord.File("images/Hello.png", filename="Hello.png")
 
     embed = discord.Embed(
         title=f"👋 Вітаємо, {member.name}!",
         description="Інвентар ще порожній, але мисливці вже в дорозі 🎯",
         color=0x8B4513
     )
-    embed.set_image(url="attachment://Hello_v2.png")
+    embed.set_image(url="attachment://Hello.png")
 
     await channel.send(content=member.mention, embed=embed, file=file)
     
