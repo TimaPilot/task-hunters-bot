@@ -55,7 +55,8 @@ async def on_ready():
 async def on_member_join(member):
     channel = bot.get_channel(1356270026688041171)  # ID твого каналу
 
-    file = discord.File("images/Hello.png", filename="Hello.png")
+    image_path = os.path.join(os.path.dirname(__file__), "images", "Hello.png")
+    file = discord.File(image_path, filename="Hello.png")
 
     embed = discord.Embed(
         title=f"👋 Вітаємо, {member.name}!",
