@@ -51,6 +51,33 @@ async def on_ready():
     print(f"✅ Logged in as {bot.user}")
     bot.add_view(ResourceButtonsView())  # keep view alive after restart
 
+@bot.event
+async def on_member_join(member):
+    channel = bot.get_channel(1359315250301894697)  # ID твого каналу
+
+    file = discord.File(
+        r"C:\Users\Admin\Desktop\TH-Bot_Dev\images\Hello_v2.png",
+        filename="Hello_v2.png"
+    )
+
+    embed = discord.Embed(
+        title=f"👋 Вітаємо, {member.name}!",
+        description="Інвентар ще порожній, але мисливці вже в дорозі 🎯",
+        color=0x8B4513
+    )
+    embed.set_image(url="attachment://Hello_v2.png")
+
+    await channel.send(content=member.mention, embed=embed, file=file)
+    
+    role = discord.utils.get(member.guild.roles, name="Замовник")
+
+    if role:
+        # Видаємо роль учаснику
+        await member.add_roles(role)
+        print(f"Роль '{role.name}' видано користувачу {member.name}")
+    else:
+        print("Роль 'Замовник' не знайдена!")
+
 @bot.command()
 @commands.has_permissions(manage_messages=True)
 async def clear(ctx):
