@@ -15,6 +15,7 @@ from db_logger import (
 )
 
 import traceback
+OWNER_ID = 386329540353458186
 
 def log_error(error_text):
     with open("error_log.txt", "a", encoding="utf-8") as f:
@@ -50,6 +51,13 @@ async def on_ready():
     await init_db()
     print(f"✅ Logged in as {bot.user}")
     bot.add_view(ResourceButtonsView())  # keep view alive after restart
+
+@bot.tree.command(name="ping", description="Перевірка чи бот живий")
+async def ping(interaction: discord.Interaction):
+    if interaction.user.id != OWNER_ID: 
+        await interaction.response.send_message("⛔ Ця команда лише для капітана!", ephemeral=True)
+        return
+    await interaction.response.send_message("🏓 Pong! Бот активний.")
 
 @bot.event
 async def on_member_join(member):
