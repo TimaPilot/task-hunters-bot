@@ -111,3 +111,8 @@ async def delete_orders_by_customer(customer_id: int):
     conn = await get_connection()
     await conn.execute("DELETE FROM orders WHERE customer_id = $1;", customer_id)
     await conn.close()
+
+async def delete_orders_by_status(status: str):
+    conn = await get_connection()
+    await conn.execute("DELETE FROM orders WHERE status = $1;", status)
+    await conn.close()

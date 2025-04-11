@@ -11,15 +11,12 @@ from db_logger import (
     get_orders_by_user,
     init_db,
     mark_order_accepted,
-    mark_order_collected
+    mark_order_collected,
+    delete_orders_by_customer,
+    delete_orders_by_status
 )
-
 import traceback
 OWNER_ID = 386329540353458186
-
-def log_error(error_text):
-    with open("error_log.txt", "a", encoding="utf-8") as f:
-        f.write(error_text + "\n")
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -59,6 +56,9 @@ async def on_ready():
 
     bot.add_view(ResourceButtonsView())
 
+# ==============================================
+#           [Блок: Slash команда]
+# ==============================================
 @bot.tree.command(name="ping", description="Перевірка чи бот живий")
 async def ping(interaction: discord.Interaction):
     if interaction.user.id != OWNER_ID: 
@@ -66,6 +66,9 @@ async def ping(interaction: discord.Interaction):
         return
     await interaction.response.send_message("🏓 Pong! Бот активний.", ephemeral=True)
 
+# ==============================================
+#           [Блок: Привітання новеньких]
+# ==============================================
 @bot.event
 async def on_member_join(member):
     channel = bot.get_channel(1356270026688041171)  # ID твого каналу
@@ -91,22 +94,42 @@ async def on_member_join(member):
     else:
         print("Роль 'Замовник 💼' не знайдена!")
 
+
+# =======================================================================
+#           [Блок: Очищення чату (крім закріплених повід.)]
+# =======================================================================
 @bot.command()
 @commands.has_permissions(manage_messages=True)
 async def clear(ctx):
     # Очищаємо весь чат, але залишаємо закріплені повідомлення
     await ctx.channel.purge(check=lambda msg: not msg.pinned)
     await ctx.send("🧹 Чат очищено! Закріплені повідомлення залишились.", delete_after=5)
-    
-@bot.command()
-async def start(ctx):
-    class OrderButtonView(View):
-        def __init__(self):
-            super().__init__(timeout=None)
-            self.add_item(Button(label="Замовити послугу", style=discord.ButtonStyle.primary, custom_id="order_service"))
 
-    await ctx.send("Натисни кнопку нижче, щоб зробити замовлення:", view=OrderButtonView())
 
+# ==============================================
+#           [Блок: Очищення бази даних]
+# ==============================================
+@bot.command(name="очистити_замовлення_користувача")
+async def clear_orders_by_user(ctx, member: discord.Member):
+    if ctx.author.id != 386329540353458186:
+        await ctx.send("❌ У вас немає прав на виконання цієї команди.")
+        return
+
+    await delete_orders_by_customer(member.id)
+    await ctx.send(f"🧹 Видалено всі замовлення користувача {member.mention}.")
+
+@bot.command(name="очистити_за_статусом")
+async def clear_orders_by_status(ctx, *, status: str):
+    if ctx.author.id != 386329540353458186:
+        await ctx.send("❌ У вас немає прав на виконання цієї команди.")
+        return
+
+    await delete_orders_by_status(status)
+    await ctx.send(f"🧹 Видалено всі замовлення зі статусом: **{status}**.")
+
+# ==============================================
+#           [Блок: Статистика]
+# ==============================================
 @bot.command(name="моїзамовлення")
 async def my_orders(ctx):
     user_id = ctx.author.id
@@ -126,6 +149,18 @@ async def my_orders(ctx):
         message += f"- `{formatted_ts}` {order['details']} — **{order['status']}**\n"
 
     await ctx.send(message)
+
+# ==============================================
+#           [Блок: Команда для замовлення]
+# ==============================================
+@bot.command()
+async def start(ctx):
+    class OrderButtonView(View):
+        def __init__(self):
+            super().__init__(timeout=None)
+            self.add_item(Button(label="Замовити послугу", style=discord.ButtonStyle.primary, custom_id="order_service"))
+
+    await ctx.send("Натисни кнопку нижче, щоб зробити замовлення:", view=OrderButtonView())
 
 class ResourceButtonsView(View):
     def __init__(self):
@@ -152,6 +187,9 @@ class OrderProgressView(View):
         elif stage == "ready":
             self.add_item(Button(label="✅ Завершено", style=discord.ButtonStyle.secondary, custom_id=f"finish_{order_id}"))
 
+# ==============================================
+#           [Блок: on_interaction]
+# ==============================================
 @bot.event
 async def on_interaction(interaction: discord.Interaction):
     if interaction.type == discord.InteractionType.component:
