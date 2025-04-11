@@ -118,6 +118,15 @@ async def clear_orders_by_user(ctx, member: discord.Member):
     await delete_orders_by_customer(member.id)
     await ctx.send(f"🧹 Видалено всі замовлення користувача {member.mention}.")
 
+@bot.command(name="очистити_замовлення_id")
+async def clear_orders_by_customer_id(ctx, customer_id: int):
+    if ctx.author.id != 386329540353458186:
+        await ctx.send("❌ У вас немає прав на виконання цієї команди.")
+        return
+
+    await delete_orders_by_customer(customer_id)
+    await ctx.send(f"🧹 Усі замовлення користувача з ID `{customer_id}` видалено.")
+
 @bot.command(name="очистити_за_статусом")
 async def clear_orders_by_status(ctx, *, status: str):
     if ctx.author.id != 386329540353458186:
