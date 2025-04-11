@@ -97,7 +97,7 @@ async def clear(ctx):
     # Очищаємо весь чат, але залишаємо закріплені повідомлення
     await ctx.channel.purge(check=lambda msg: not msg.pinned)
     await ctx.send("🧹 Чат очищено! Закріплені повідомлення залишились.", delete_after=5)
-
+    
 @bot.command()
 async def start(ctx):
     class OrderButtonView(View):
