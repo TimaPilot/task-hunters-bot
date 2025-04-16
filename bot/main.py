@@ -1,10 +1,10 @@
 import discord
 from discord.ext import commands
 from discord.ui import View, Button
+from discord import Interaction, Embed
 from dotenv import load_dotenv
 import os
 import datetime
-from discord.ui import View, Button
 import psycopg2
 import urllib.parse as urlparse
 from db_logger import (
@@ -98,7 +98,6 @@ async def on_member_join(member):
     else:
         print("Роль 'Замовник 💼' не знайдена!")
 
-
 # =======================================================================
 #           [Блок: Очищення чату (крім закріплених повід.)]
 # =======================================================================
@@ -108,7 +107,6 @@ async def clear(ctx):
     # Очищаємо весь чат, але залишаємо закріплені повідомлення
     await ctx.channel.purge(check=lambda msg: not msg.pinned)
     await ctx.send("🧹 Чат очищено! Закріплені повідомлення залишились.", delete_after=5)
-
 
 # ==============================================
 #           [Блок: Очищення бази даних]
@@ -146,7 +144,6 @@ async def clear_orders_by_status(ctx, *, status: str):
 @bot.command(name="панель")
 async def show_panel(ctx):
     await ctx.send("Натисни кнопку нижче, щоб відкрити свій особистий кабінет:", view=CabinetButtonView())
-cabinet_messages = {}
 
 # ==============================================
 #           [Блок: Команда для замовлення]
@@ -242,54 +239,36 @@ class CabinetButtonView(View):
     @discord.ui.button(label="📂 Зайти в особистий кабінет", style=discord.ButtonStyle.primary)
     async def open_cabinet(self, interaction: discord.Interaction, button: discord.ui.Button):
         user_id = interaction.user.id
+
         total_orders, completed_count = get_user_order_stats(user_id)
         total_spent = get_total_spent(user_id)
 
         embed = discord.Embed(title="🧾 Особистий кабінет", color=0x00ffcc)
-        embed.add_field(name="Ім'я", value=f"{interaction.user.mention}", inline=False)
+        embed.add_field(name="Ім’я", value=f"<@{user_id}>", inline=False)
         embed.add_field(name="📦 Замовлень (всього)", value=str(total_orders), inline=True)
         embed.add_field(name="✅ Виконано", value=str(completed_count), inline=True)
         embed.add_field(name="💰 Витрачено", value=f"${total_spent}", inline=True)
         embed.add_field(name="🎟️ Знижка", value="0%", inline=True)
         embed.add_field(name="🎁 Безкоштовні замовлення", value="0", inline=True)
 
-        # Якщо вже є повідомлення, редагуємо його
-        previous = cabinet_messages.get(user_id)
-        if previous:
-            channel = bot.get_channel(previous["channel_id"])
-            if channel:
-                try:
-                    msg = await channel.fetch_message(previous["message_id"])
-                    await msg.edit(embed=embed, view=CabinetButtonView())
-                    return
-                except discord.NotFound:
-                    pass  # якщо повідомлення видалене
-
-        # Якщо повідомлення ще не існує — надсилаємо нове
-        await interaction.response.send_message(embed=embed)
-        sent_msg = await interaction.original_response()
-        cabinet_messages[user_id] = {
-            "message_id": sent_msg.id,
-            "channel_id": sent_msg.channel.id
-    }
-
-#    @discord.ui.button(label="📂 Зайти в особистий кабінет", style=discord.ButtonStyle.primary)
-#    async def open_cabinet(self, interaction: discord.Interaction, button: discord.ui.Button):
-#        user_id = interaction.user.id
-#
-#        total_orders, completed_count = get_user_order_stats(user_id)
-#        total_spent = get_total_spent(user_id)
-#
-#        embed = discord.Embed(title="🧾 Особистий кабінет", color=0x00ffcc)
-#        embed.add_field(name="Ім’я", value=f"<@{user_id}>", inline=False)
-#        embed.add_field(name="📦 Замовлень (всього)", value=str(total_orders), inline=True)
-#        embed.add_field(name="✅ Виконано", value=str(completed_count), inline=True)
-#        embed.add_field(name="💰 Витрачено", value=f"${total_spent}", inline=True)
-#        embed.add_field(name="🎟️ Знижка", value="0%", inline=True)
-#        embed.add_field(name="🎁 Безкоштовні замовлення", value="0", inline=True)
-#
-#        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
     
+    @discord.ui.button(label="🔗 Реферальна система", style=discord.ButtonStyle.secondary)
+    async def referral_info(self, interaction: discord.Interaction, button: discord.ui.Button):
+        embed = discord.Embed(
+            title="🔗 Реферальна програма",
+            description=(
+                "Запроси друзів та отримай бонуси!\n\n"
+                "✅ За кожного, хто зробив хоча б одне замовлення — +1 безкоштовне замовлення\n"
+                "✅ 5 друзів — персональна знижка 20%\n\n"
+                "Натисни одну з кнопок нижче:"
+            ),
+            color=0x00ffcc
+        )
+
+        view = ReferralOptionsView()
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
 # ...............................................................
 #           [Блок: Вигляд кнопки детальна статистика]
 # ...............................................................
@@ -344,6 +323,21 @@ class CabinetButtonView(View):
 
         cursor.close()
         conn.close()
+
+class ReferralOptionsView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="📎 Отримати реферальне посилання", style=discord.ButtonStyle.link, url="https://discord.gg/твоє-посилання")
+    async def get_ref_link(self, interaction: discord.Interaction, button: discord.ui.Button):
+        pass  # ця кнопка вже сама відкриє посилання
+
+    @discord.ui.button(label="📊 Переглянути свою статистику", style=discord.ButtonStyle.secondary)
+    async def view_ref_stats(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_message(
+            "Тут буде твоя статистика по рефералці (тимчасово заглушка 😉)",
+            ephemeral=True
+        )
 
 class ResourceButtonsView(View):
     def __init__(self):
