@@ -253,58 +253,7 @@ class CabinetButtonView(View):
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
     
-    @discord.ui.button(label="🔗 Реферальна система", style=discord.ButtonStyle.secondary)
-    async def referral_info(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Генеруємо інвайт-посилання
-       # Генеруємо інвайт-посилання
-        invite = await interaction.channel.create_invite(
-            max_uses=0,
-            unique=True,
-            reason=f"Реферальне посилання для {interaction.user.name}"
-        )
-        ref_url = invite.url
-
-        embed = discord.Embed(
-            title="🎁 Реферальна програма",
-            description=(
-                f"Привіт, {interaction.user.mention}!\n"
-                "Запроси друзів до сервера та отримуй винагороди:\n"
-                "• За кожне замовлення друга — 🎟️ знижка\n"
-                "• За 5 рефералів — 🎁 безкоштовне замовлення\n\n"
-                "Оберіть дію нижче:"
-            ),
-            color=0x00ffcc
-        )
-
-        await interaction.response.send_message(embed=embed, view=ReferralOptionsView(ref_url), ephemeral=True)
-
-
-        # Створюємо кастомний View з двома кнопками
-class ReferralOptionsView(discord.ui.View):
-    def __init__(self, ref_url):  # <–– додай параметр ref_url
-        super().__init__(timeout=None)
-
-        self.add_item(discord.ui.Button(
-            label="📎 Отримати посилання",
-            style=discord.ButtonStyle.link,
-            url=ref_url
-        ))
-
-        self.add_item(ReferralStatsButton())
-
-
-class ReferralStatsButton(discord.ui.Button):
-    def __init__(self):
-        super().__init__(label="📊 Переглянути статистику", style=discord.ButtonStyle.secondary)
-
-    async def callback(self, interaction: discord.Interaction):
-        await interaction.response.send_message(
-            "📊 Тут буде твоя статистика по рефералці (тимчасова заглушка 😏)",
-            ephemeral=True
-        )
-
-
-
+   
 # ...............................................................
 #           [Блок: Вигляд кнопки детальна статистика]
 # ...............................................................
@@ -359,31 +308,6 @@ class ReferralStatsButton(discord.ui.Button):
 
         cursor.close()
         conn.close()
-
-class ReferralOptionsView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
-
-    @discord.ui.button(label="📎 Отримати реферальне посилання", style=discord.ButtonStyle.secondary)
-    async def get_ref_link(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Генеруємо динамічне посилання
-        invite = await interaction.channel.create_invite(
-            max_uses=0,
-            unique=True,
-            reason=f"Реферальне посилання для {interaction.user.name}"
-        )
-        await interaction.response.send_message(
-            f"Ось твоє унікальне посилання: {invite.url}",
-            ephemeral=True
-        )
-
-    @discord.ui.button(label="📊 Переглянути свою статистику", style=discord.ButtonStyle.secondary, custom_id="view_ref_stats")
-    async def view_ref_stats(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_message(
-            "📊 Тут буде твоя статистика по рефералці (тимчасова заглушка 😏)",
-            ephemeral=True
-        )
-
 
 class ResourceButtonsView(View):
     def __init__(self):
