@@ -6,6 +6,7 @@ import os
 import datetime
 from discord.ui import View, Button
 import psycopg2
+import urllib.parse as urlparse
 from db_logger import (
     save_order_to_db,
     update_order_status_by_id,
@@ -210,7 +211,9 @@ def get_order_price(order, cursor):
     return final_price
 
 def get_total_spent(customer_id: int):
-    conn = psycopg2.connect(...)  # як раніше
+    dsn = os.getenv("DATABASE_URL")
+    conn = psycopg2.connect(dsn)
+
     cursor = conn.cursor()
 
     cursor.execute("""
