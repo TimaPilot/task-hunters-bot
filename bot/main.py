@@ -249,7 +249,6 @@ class CabinetButtonView(View):
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-
 class ResourceButtonsView(View):
     def __init__(self):
         super().__init__(timeout=None)
