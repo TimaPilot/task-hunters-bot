@@ -255,20 +255,47 @@ class CabinetButtonView(View):
     
     @discord.ui.button(label="🔗 Реферальна система", style=discord.ButtonStyle.secondary)
     async def referral_info(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Генеруємо унікальне інвайт-посилання
+        invite = await interaction.channel.create_invite(
+            max_uses=0,
+            unique=True,
+            reason=f"Реферальне посилання для {interaction.user.name}"
+        )
+        ref_url = invite.url
+
+        # Embed із поясненням
         embed = discord.Embed(
-            title="🔗 Реферальна програма",
+            title="🎁 Реферальна програма",
             description=(
-                "Запроси друзів та отримай бонуси!\n\n"
-                "✅ За кожного, хто зробив хоча б одне замовлення — +1 безкоштовне замовлення\n"
-                "✅ 5 друзів — персональна знижка 20%\n\n"
-                "Натисни одну з кнопок нижче:"
+                f"Привіт, {interaction.user.mention}!\n"
+                "Запроси друзів до нашого сервера й отримай бонуси за їхні замовлення:\n"
+                "• За кожне замовлення друга — 🎟️ знижка\n"
+                "• За 5 активних рефералів — 🎁 безкоштовне замовлення\n\n"
+                "Оберіть дію нижче:"
             ),
             color=0x00ffcc
         )
 
-        view = ReferralOptionsView()
+        # Створюємо View з кнопками
+        view = discord.ui.View(timeout=None)
+        view.add_item(discord.ui.Button(
+            label="📎 Отримати реферальне посилання",
+            style=discord.ButtonStyle.link,
+            url=ref_url
+        ))
+
+        # Додаємо кнопку статистики
+        @discord.ui.button(label="📊 Переглянути свою статистику", style=discord.ButtonStyle.secondary)
+        async def stats_button(interaction: discord.Interaction, button: discord.ui.Button):
+            await interaction.response.send_message(
+                "📊 Статистика ще в розробці 😉", ephemeral=True
+            )
+
+        view.add_item(stats_button)
+
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
+        
 # ...............................................................
 #           [Блок: Вигляд кнопки детальна статистика]
 # ...............................................................
