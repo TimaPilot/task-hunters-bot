@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 import os
 import datetime
 from discord.ui import View, Button
+import psycopg2
 from db_logger import (
     save_order_to_db,
     update_order_status_by_id,
@@ -160,6 +161,30 @@ async def start(ctx):
 # ==============================================
 #           [Блок: Особистий кабінет]
 # ==============================================
+def get_user_order_stats(customer_id: int):
+    conn = psycopg2.connect(
+        dbname="railway",
+        user="postgres",
+        password="FJKgjkxdKaPTNXfxSgbGKpDbVILNojHs",
+        host="postgres.railway.internal",
+        port="5432"
+    )
+
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT COUNT(*) FROM orders WHERE customer_id = %s
+    """, (str(customer_id),))
+    total_orders = cursor.fetchone()[0]
+
+    cursor.execute("""
+        SELECT COUNT(*) FROM orders WHERE customer_id = %s AND status = 'Виконано'
+    """, (str(customer_id),))
+    completed_orders = cursor.fetchone()[0]
+
+    cursor.close()
+    conn.close()
+
+    return total_orders, completed_orders
 
 class CabinetButtonView(View):
     def __init__(self):
@@ -167,10 +192,12 @@ class CabinetButtonView(View):
 
     @discord.ui.button(label="📂 Зайти в особистий кабінет", style=discord.ButtonStyle.primary)
     async def open_cabinet(self, interaction: discord.Interaction, button: discord.ui.Button):
+        total_orders, completed_count = get_user_order_stats(interaction.user.id)
+
         embed = discord.Embed(title="🧾 Особистий кабінет", color=0x00ffcc)
         embed.add_field(name="Ім’я", value=f"<@{interaction.user.id}>", inline=False)
-        embed.add_field(name="Замовлень (всього)", value="0", inline=True)
-        embed.add_field(name="✅ Виконано", value="0", inline=True)
+        embed.add_field(name="📦 Замовлень (всього)", value=str(total_orders), inline=True)
+        embed.add_field(name="✅ Виконано", value=str(completed_count), inline=True)
         embed.add_field(name="💰 Витрачено", value="$0", inline=True)
         embed.add_field(name="🎟️ Знижка", value="0%", inline=True)
         embed.add_field(name="🎁 Безкоштовні замовлення", value="0", inline=True)
