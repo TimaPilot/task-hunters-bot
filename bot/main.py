@@ -231,6 +231,9 @@ def get_total_spent(customer_id: int):
 
     return total_spent
 
+# ===============================================================
+#           [Блок: Вигляд кнопки особистий кабінет]
+# ===============================================================
 class CabinetButtonView(View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -252,6 +255,9 @@ class CabinetButtonView(View):
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
     
+# ...............................................................
+#           [Блок: Вигляд кнопки детальна статистика]
+# ...............................................................
     @discord.ui.button(label="📊 Детальна статистика", style=discord.ButtonStyle.secondary)
     async def detailed_stats(self, interaction: discord.Interaction, button: discord.ui.Button):
         import os
@@ -281,9 +287,8 @@ class CabinetButtonView(View):
         if not resource_counts:
             description = "😔 У вас ще немає виконаних замовлень."
         else:
-            description = "\n".join([f"{emoji} {name}: {count} замовлень"
-                                    for name, count in resource_counts.items()
-                                    for emoji in [next((e for e, n in resource_reverse.items() if n == resource_reverse.get(name, "")), "📦")]])
+            description = "\n".join([f"{emoji}: {count} замовлень" for name, count in resource_counts.items()
+                         for emoji in [next((e for e, n in resource_reverse.items() if n == name), "📦")]])
 
         embed = discord.Embed(title="📊 Детальна статистика", description=description, color=0x00ffcc)
         await interaction.response.send_message(embed=embed, ephemeral=True)
