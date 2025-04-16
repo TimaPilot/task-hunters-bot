@@ -287,9 +287,22 @@ class CabinetButtonView(View):
         if not resource_counts:
             description = "😔 У вас ще немає виконаних замовлень."
         else:
-            description = "\n".join([f"{emoji} {name}: {count} замовлень"
-                         for name, count in resource_counts.items()
-                         for emoji in [next((e for e, n in resource_reverse.items() if n == name), "📦")]])
+            description = f"Привіт, {interaction.user.mention}! Ось твоя особиста аналітика виконаних замовлень:\n\n"
+            description += "\n".join([
+                f"{emoji} {name}: {count} замовлення(нь)"
+                for name, count in resource_counts.items()
+                for emoji in [next((e for e, n in resource_reverse.items() if n == name), "")]
+            ])
+
+            # Знаходимо найпопулярніший ресурс
+            top_resource = max(resource_counts.items(), key=lambda x: x[1], default=(None, 0))
+            top_name, top_count = top_resource
+            top_emoji = next((e for e, n in resource_reverse.items() if n == top_name), "")
+
+            if top_name:
+                description += f"\n\n🔥 Найчастіше ти замовляв: {top_emoji} {top_name} ({top_count} рази)"
+
+            description += "\n\n🔁 Якщо будеш виконувати більше замовлень — тут з’явиться ще більше інформації!"
 
         embed = discord.Embed(title="📊 Детальна статистика", description=description, color=0x00ffcc)
         await interaction.response.send_message(embed=embed, ephemeral=True)
