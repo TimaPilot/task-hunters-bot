@@ -147,45 +147,6 @@ async def clear_orders_by_status(ctx, *, status: str):
 async def show_panel(ctx):
     await ctx.send("Натисни кнопку нижче, щоб відкрити свій особистий кабінет:", view=CabinetButtonView())
 
-@discord.ui.button(label="📊 Детальна статистика", style=discord.ButtonStyle.secondary)
-async def detailed_stats(self, interaction: discord.Interaction, button: discord.ui.Button):
-    import os
-    import psycopg2
-    from dotenv import load_dotenv
-    load_dotenv()
-
-    dsn = os.getenv("DATABASE_URL")
-    conn = psycopg2.connect(dsn)
-    cursor = conn.cursor()
-
-    user_id = str(interaction.user.id)
-
-    cursor.execute("""
-        SELECT details FROM orders
-        WHERE customer_id = %s AND status = 'Виконано'
-    """, (user_id,))
-
-    rows = cursor.fetchall()
-    resource_counts = {}
-
-    for row in rows:
-        resource = row[0]
-        resource_counts[resource] = resource_counts.get(resource, 0) + 1
-
-    # Формуємо текст
-    if not resource_counts:
-        description = "😔 У вас ще немає виконаних замовлень."
-    else:
-        description = "\n".join([f"{emoji} {name}: {count} замовлень"
-                                 for name, count in resource_counts.items()
-                                 for emoji in [next((e for e, n in resource_reverse.items() if n == resource_reverse.get(name, "")), "📦")]])
-
-    embed = discord.Embed(title="📊 Детальна статистика", description=description, color=0x00ffcc)
-    await interaction.response.send_message(embed=embed, ephemeral=True)
-
-    cursor.close()
-    conn.close()
-
 # ==============================================
 #           [Блок: Команда для замовлення]
 # ==============================================
@@ -290,6 +251,45 @@ class CabinetButtonView(View):
         embed.add_field(name="🎁 Безкоштовні замовлення", value="0", inline=True)
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
+    
+    @discord.ui.button(label="📊 Детальна статистика", style=discord.ButtonStyle.secondary)
+    async def detailed_stats(self, interaction: discord.Interaction, button: discord.ui.Button):
+        import os
+        import psycopg2
+        from dotenv import load_dotenv
+        load_dotenv()
+
+        dsn = os.getenv("DATABASE_URL")
+        conn = psycopg2.connect(dsn)
+        cursor = conn.cursor()
+
+        user_id = str(interaction.user.id)
+
+        cursor.execute("""
+            SELECT details FROM orders
+            WHERE customer_id = %s AND status = 'Виконано'
+        """, (user_id,))
+
+        rows = cursor.fetchall()
+        resource_counts = {}
+
+        for row in rows:
+            resource = row[0]
+            resource_counts[resource] = resource_counts.get(resource, 0) + 1
+
+        # Формуємо текст
+        if not resource_counts:
+            description = "😔 У вас ще немає виконаних замовлень."
+        else:
+            description = "\n".join([f"{emoji} {name}: {count} замовлень"
+                                    for name, count in resource_counts.items()
+                                    for emoji in [next((e for e, n in resource_reverse.items() if n == resource_reverse.get(name, "")), "📦")]])
+
+        embed = discord.Embed(title="📊 Детальна статистика", description=description, color=0x00ffcc)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+        cursor.close()
+        conn.close()
 
 class ResourceButtonsView(View):
     def __init__(self):
