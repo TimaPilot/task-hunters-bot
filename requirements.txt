@@ -1,8 +1,3 @@
 discord.py
 python-dotenv
 asyncpg
-<<<<<<< HEAD
-git 
-=======
-psycopg2-binary
->>>>>>> e3cd70adff68b55bb90ffb697bcc0ab2e564b022
