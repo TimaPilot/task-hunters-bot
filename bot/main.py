@@ -281,18 +281,17 @@ class CabinetButtonView(View):
 
         # Створюємо кастомний View з двома кнопками
 class ReferralOptionsView(discord.ui.View):
-    def __init__(self, ref_url):
+    def __init__(self, ref_url):  # <–– додай параметр ref_url
         super().__init__(timeout=None)
 
-        # Кнопка-посилання
         self.add_item(discord.ui.Button(
             label="📎 Отримати посилання",
             style=discord.ButtonStyle.link,
             url=ref_url
         ))
 
-        # Звичайна кнопка
         self.add_item(ReferralStatsButton())
+
 
 class ReferralStatsButton(discord.ui.Button):
     def __init__(self):
