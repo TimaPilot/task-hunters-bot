@@ -146,6 +146,7 @@ async def clear_orders_by_status(ctx, *, status: str):
 @bot.command(name="панель")
 async def show_panel(ctx):
     await ctx.send("Натисни кнопку нижче, щоб відкрити свій особистий кабінет:", view=CabinetButtonView())
+cabinet_messages = {}
 
 # ==============================================
 #           [Блок: Команда для замовлення]
@@ -241,19 +242,53 @@ class CabinetButtonView(View):
     @discord.ui.button(label="📂 Зайти в особистий кабінет", style=discord.ButtonStyle.primary)
     async def open_cabinet(self, interaction: discord.Interaction, button: discord.ui.Button):
         user_id = interaction.user.id
-
         total_orders, completed_count = get_user_order_stats(user_id)
         total_spent = get_total_spent(user_id)
 
         embed = discord.Embed(title="🧾 Особистий кабінет", color=0x00ffcc)
-        embed.add_field(name="Ім’я", value=f"<@{user_id}>", inline=False)
+        embed.add_field(name="Ім'я", value=f"{interaction.user.mention}", inline=False)
         embed.add_field(name="📦 Замовлень (всього)", value=str(total_orders), inline=True)
         embed.add_field(name="✅ Виконано", value=str(completed_count), inline=True)
         embed.add_field(name="💰 Витрачено", value=f"${total_spent}", inline=True)
         embed.add_field(name="🎟️ Знижка", value="0%", inline=True)
         embed.add_field(name="🎁 Безкоштовні замовлення", value="0", inline=True)
 
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        # Якщо вже є повідомлення, редагуємо його
+        previous = cabinet_messages.get(user_id)
+        if previous:
+            channel = bot.get_channel(previous["channel_id"])
+            if channel:
+                try:
+                    msg = await channel.fetch_message(previous["message_id"])
+                    await msg.edit(embed=embed, view=CabinetButtonView())
+                    return
+                except discord.NotFound:
+                    pass  # якщо повідомлення видалене
+
+        # Якщо повідомлення ще не існує — надсилаємо нове
+        await interaction.response.send_message(embed=embed)
+        sent_msg = await interaction.original_response()
+        cabinet_messages[user_id] = {
+            "message_id": sent_msg.id,
+            "channel_id": sent_msg.channel.id
+    }
+
+#    @discord.ui.button(label="📂 Зайти в особистий кабінет", style=discord.ButtonStyle.primary)
+#    async def open_cabinet(self, interaction: discord.Interaction, button: discord.ui.Button):
+#        user_id = interaction.user.id
+#
+#        total_orders, completed_count = get_user_order_stats(user_id)
+#        total_spent = get_total_spent(user_id)
+#
+#        embed = discord.Embed(title="🧾 Особистий кабінет", color=0x00ffcc)
+#        embed.add_field(name="Ім’я", value=f"<@{user_id}>", inline=False)
+#        embed.add_field(name="📦 Замовлень (всього)", value=str(total_orders), inline=True)
+#        embed.add_field(name="✅ Виконано", value=str(completed_count), inline=True)
+#        embed.add_field(name="💰 Витрачено", value=f"${total_spent}", inline=True)
+#        embed.add_field(name="🎟️ Знижка", value="0%", inline=True)
+#        embed.add_field(name="🎁 Безкоштовні замовлення", value="0", inline=True)
+#
+#        await interaction.response.send_message(embed=embed, ephemeral=True)
     
 # ...............................................................
 #           [Блок: Вигляд кнопки детальна статистика]
