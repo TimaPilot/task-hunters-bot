@@ -4,6 +4,7 @@ from discord.ui import View, Button
 from dotenv import load_dotenv
 import os
 import datetime
+from discord.ui import View, Button
 from db_logger import (
     save_order_to_db,
     update_order_status_by_id,
@@ -55,6 +56,7 @@ async def on_ready():
         print("❌ Помилка при синхронізації слеш-команд:", e)
 
     bot.add_view(ResourceButtonsView())
+    bot.add_view(CabinetButtonView())
 
 # ==============================================
 #           [Блок: Slash команда]
@@ -137,27 +139,11 @@ async def clear_orders_by_status(ctx, *, status: str):
     await ctx.send(f"🧹 Видалено всі замовлення зі статусом: **{status}**.")
 
 # ==============================================
-#           [Блок: Статистика]
+#           [Блок: Особистий кабінет]
 # ==============================================
-@bot.command(name="моїзамовлення")
-async def my_orders(ctx):
-    user_id = ctx.author.id
-    orders = await get_orders_by_user(user_id)
-
-    if not orders:
-        await ctx.send("🔍 У вас поки немає замовлень.")
-        return
-
-    message = "📦 **Ваші замовлення:**\n"
-    for order in orders[-10:]:
-        ts = order['timestamp']
-        if isinstance(ts, str):
-            ts = datetime.datetime.fromisoformat(ts)
-
-        formatted_ts = ts.strftime("%Y-%m-%d %H:%M")  # формат виводу часу
-        message += f"- `{formatted_ts}` {order['details']} — **{order['status']}**\n"
-
-    await ctx.send(message)
+@bot.command(name="панель")
+async def show_panel(ctx):
+    await ctx.send("Натисни кнопку нижче, щоб відкрити свій особистий кабінет:", view=CabinetButtonView())
 
 # ==============================================
 #           [Блок: Команда для замовлення]
@@ -170,6 +156,27 @@ async def start(ctx):
             self.add_item(Button(label="Замовити послугу", style=discord.ButtonStyle.primary, custom_id="order_service"))
 
     await ctx.send("Натисни кнопку нижче, щоб зробити замовлення:", view=OrderButtonView())
+
+# ==============================================
+#           [Блок: Особистий кабінет]
+# ==============================================
+
+class CabinetButtonView(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="📂 Зайти в особистий кабінет", style=discord.ButtonStyle.primary)
+    async def open_cabinet(self, interaction: discord.Interaction, button: discord.ui.Button):
+        embed = discord.Embed(title="🧾 Особистий кабінет", color=0x00ffcc)
+        embed.add_field(name="Ім’я", value=f"<@{interaction.user.id}>", inline=False)
+        embed.add_field(name="Замовлень (всього)", value="0", inline=True)
+        embed.add_field(name="✅ Виконано", value="0", inline=True)
+        embed.add_field(name="💰 Витрачено", value="$0", inline=True)
+        embed.add_field(name="🎟️ Знижка", value="0%", inline=True)
+        embed.add_field(name="🎁 Безкоштовні замовлення", value="0", inline=True)
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
 
 class ResourceButtonsView(View):
     def __init__(self):
