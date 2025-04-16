@@ -287,7 +287,8 @@ class CabinetButtonView(View):
         if not resource_counts:
             description = "😔 У вас ще немає виконаних замовлень."
         else:
-            description = "\n".join([f"{emoji}: {count} замовлень" for name, count in resource_counts.items()
+            description = "\n".join([f"{emoji} {name}: {count} замовлень"
+                         for name, count in resource_counts.items()
                          for emoji in [next((e for e, n in resource_reverse.items() if n == name), "📦")]])
 
         embed = discord.Embed(title="📊 Детальна статистика", description=description, color=0x00ffcc)
