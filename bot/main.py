@@ -368,7 +368,7 @@ class ReferralOptionsView(discord.ui.View):
             ephemeral=True
         )
 
-    @discord.ui.button(label="📊 Переглянути свою статистику", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="📊 Переглянути свою статистику", style=discord.ButtonStyle.secondary, custom_id="view_ref_stats")
     async def view_ref_stats(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_message(
             "📊 Тут буде твоя статистика по рефералці (тимчасова заглушка 😏)",
