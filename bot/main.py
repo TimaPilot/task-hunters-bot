@@ -186,19 +186,64 @@ def get_user_order_stats(customer_id: int):
 
     return total_orders, completed_orders
 
+def get_order_price(order, cursor):
+    resource = order["details"]
+    finished_at = order["finished_at"]
+    discount = order.get("discount_percent") or 0  # якщо NULL — знижки нема
+
+    # Отримати найновішу ціну, яка діяла на момент замовлення
+    cursor.execute("""
+        SELECT price FROM resource_prices
+        WHERE resource = %s AND effective_from <= %s
+        ORDER BY effective_from DESC
+        LIMIT 1
+    """, (resource, finished_at))
+    result = cursor.fetchone()
+
+    if not result:
+        print(f"⚠️ Ціна не знайдена для {resource} на {finished_at}")
+        return 0
+
+    base_price = result[0]
+    final_price = int(base_price * (1 - discount / 100))
+
+    return final_price
+
+def get_total_spent(customer_id: int):
+    conn = psycopg2.connect(...)  # як раніше
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT * FROM orders WHERE customer_id = %s AND status = 'Виконано'
+    """, (str(customer_id),))
+
+    # Отримаємо список замовлень як словники
+    columns = [desc[0] for desc in cursor.description]
+    orders = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+    total_spent = sum(get_order_price(order, cursor) for order in orders)
+
+    cursor.close()
+    conn.close()
+
+    return total_spent
+
 class CabinetButtonView(View):
     def __init__(self):
         super().__init__(timeout=None)
 
     @discord.ui.button(label="📂 Зайти в особистий кабінет", style=discord.ButtonStyle.primary)
     async def open_cabinet(self, interaction: discord.Interaction, button: discord.ui.Button):
-        total_orders, completed_count = get_user_order_stats(interaction.user.id)
+        user_id = interaction.user.id
+
+        total_orders, completed_count = get_user_order_stats(user_id)
+        total_spent = get_total_spent(user_id)
 
         embed = discord.Embed(title="🧾 Особистий кабінет", color=0x00ffcc)
-        embed.add_field(name="Ім’я", value=f"<@{interaction.user.id}>", inline=False)
+        embed.add_field(name="Ім’я", value=f"<@{user_id}>", inline=False)
         embed.add_field(name="📦 Замовлень (всього)", value=str(total_orders), inline=True)
         embed.add_field(name="✅ Виконано", value=str(completed_count), inline=True)
-        embed.add_field(name="💰 Витрачено", value="$0", inline=True)
+        embed.add_field(name="💰 Витрачено", value=f"${total_spent}", inline=True)
         embed.add_field(name="🎟️ Знижка", value="0%", inline=True)
         embed.add_field(name="🎁 Безкоштовні замовлення", value="0", inline=True)
 
