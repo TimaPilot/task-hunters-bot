@@ -1,6 +1,6 @@
 @echo off
-cd /d "D:\Discord TH\task-hunters-bot\bot"
-git pull origin main
+cd /d "D:\DiscordTH\task-hunters-bot"
+git pull
 git add .
 git commit -m "Reboot"
-git push origin main
+git push
