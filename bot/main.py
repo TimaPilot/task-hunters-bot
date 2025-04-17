@@ -364,46 +364,44 @@ class CabinetButtonView(View):
 # ===============================================================
 #           [Class: Вигляд кнопки реферальна система]
 # ===============================================================
-# ============================== 
-#     [Class: Кнопки рефералки]
-# ============================== 
+# ========================= [Referral View] =========================
+
 class ReferralView(discord.ui.View):
     def __init__(self):
-        super().__init__(timeout=None)  # ← тільки timeout, без custom_id
+        super().__init__(timeout=None)
 
     @discord.ui.button(
         label="🔗 Отримати посилання",
         style=discord.ButtonStyle.primary,
-        custom_id="get_referral_link"  # 👈 це обов’язково!
+        custom_id="get_referral_link"
     )
-
     async def get_referral_link(self, interaction: discord.Interaction, button: discord.ui.Button):
         user_id = interaction.user.id
 
-        # 🔌 Підключення до БД
+        # Підключення до бази
         dsn = os.getenv("DATABASE_URL")
         conn = psycopg2.connect(dsn)
         cursor = conn.cursor()
 
-        # 🔁 Перевіряємо, чи вже є посилання
-        cursor.execute("SELECT invited_id FROM referrals WHERE inviter_id = %s", (user_id,))
+        # Перевірка наявного інвайту
+        cursor.execute("SELECT invited_code FROM referrals WHERE inviter_id = %s", (user_id,))
         existing = cursor.fetchone()
 
         if existing:
             invite_code = existing[0]
         else:
-            # 🧾 Створюємо нове інвайт-посилання
+            # Створення інвайту
             channel = interaction.guild.system_channel or interaction.channel
             invite = await channel.create_invite(
-                reason=f"Інвайт для {interaction.user.name}", 
-                max_uses=0, 
+                reason=f"Інвайт для {interaction.user.name}",
+                max_uses=0,
                 unique=True
             )
             invite_code = invite.code
 
-            # 💾 Запис у БД
+            # Збереження в БД
             cursor.execute("""
-                INSERT INTO referrals (inviter_id, invited_id, confirmed)
+                INSERT INTO referrals (inviter_id, invited_code, confirmed)
                 VALUES (%s, %s, FALSE)
             """, (user_id, invite_code))
             conn.commit()
@@ -411,8 +409,8 @@ class ReferralView(discord.ui.View):
         referral_link = f"https://discord.gg/{invite_code}"
 
         await interaction.response.send_message(
-            f"🔗 Ось твоє індивідуальне реферальне посилання:\n`{referral_link}`\n"
-            f"Скопій його та передай другу. Після його першого замовлення ти отримаєш бонус 🎁",
+            f"📎 Ось твоє індивідуальне реферальне посилання:\n`{referral_link}`\n"
+            "Скопій його та передай другу. Після його першого замовлення ти отримаєш бонус 🎁",
             ephemeral=True
         )
 
