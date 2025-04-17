@@ -230,7 +230,7 @@ def get_total_spent(customer_id: int):
     return total_spent
 
 # ===============================================================
-#           [Блок: Вигляд кнопки особистий кабінет]
+#           [Class: Вигляд кнопки особистий кабінет]
 # ===============================================================
 class CabinetButtonView(View):
     def __init__(self):
@@ -252,19 +252,19 @@ class CabinetButtonView(View):
         embed.add_field(name="🎁 Безкоштовні замовлення", value="0", inline=True)
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
-    
+
+
+# ...............................................................
+#           [Блок: Вигляд кнопки детальна статистика]
+# ...............................................................
     @discord.ui.button(label="🔗 Реферальна система", style=discord.ButtonStyle.secondary)
-    async def referral_info(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def referral_system(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_message(
-            "**Реферальна система** 🧩\n"
-            "Запроси друга, щоб отримати **бонус 30.000$** після його першого замовлення!\n"
-            "Що потрібно зробити:\n"
-            "1. Скопіюй своє реферальне посилання (буде додано згодом)\n"
-            "2. Передай його другу\n"
-            "3. Після його першого замовлення ти отримаєш бонус 🤝\n\n"
-            "*Статистика рефералів та інші функції — скоро!*",
+            "🧩 Обери дію нижче щодо твоєї реферальної системи:",
+            view=ReferralView(),
             ephemeral=True
         )
+
 
 # ...............................................................
 #           [Блок: Вигляд кнопки детальна статистика]
@@ -320,6 +320,26 @@ class CabinetButtonView(View):
 
         cursor.close()
         conn.close()
+
+
+# ===============================================================
+#           [Class: Вигляд кнопки реферальна система]
+# ===============================================================
+class ReferralView(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="🔗 Отримати посилання", style=discord.ButtonStyle.primary)
+    async def get_referral_link(self, interaction: discord.Interaction, button: discord.ui.Button):
+        user_id = interaction.user.id
+        invite_code = "EEdeWUkGy4"  
+        referral_link = f"https://discord.gg/{invite_code}?ref={user_id}"
+
+        await interaction.response.send_message(
+            f"🔗 Ось твоє індивідуальне реферальне посилання:\n`{referral_link}`\n"
+            "Скопіюй його та передай другу. Після його першого замовлення ти отримаєш бонус 🎁",
+            ephemeral=True
+        )
 
 class ResourceButtonsView(View):
     def __init__(self):
