@@ -61,6 +61,7 @@ async def on_ready():
 
     bot.add_view(ResourceButtonsView())
     bot.add_view(CabinetButtonView())
+    bot.add_view(ReferralView())
 
 # ==============================================
 #           [Блок: Slash команда]
@@ -363,50 +364,60 @@ class CabinetButtonView(View):
 # ===============================================================
 #           [Class: Вигляд кнопки реферальна система]
 # ===============================================================
-class ReferralView(View):
+# ============================== 
+#     [Class: Кнопки рефералки]
+# ============================== 
+class ReferralView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
-        self.custom_id = "referral_view"
 
-        @discord.ui.button(label="🔗 Отримати посилання", style=discord.ButtonStyle.primary)
-        async def get_referral_link(self, interaction: discord.Interaction, button: discord.ui.Button):
-            user_id = interaction.user.id
+    @discord.ui.button(
+        label="🔗 Отримати посилання",
+        style=discord.ButtonStyle.primary,
+        custom_id="get_referral_link"  # ✅ обовʼязковий custom_id
+    )
+    async def get_referral_link(self, interaction: discord.Interaction, button: discord.ui.Button):
+        user_id = interaction.user.id
 
-            # Підключення до БД
-            dsn = os.getenv("DATABASE_URL")
-            conn = psycopg2.connect(dsn)
-            cursor = conn.cursor()
+        # 🔌 Підключення до БД
+        dsn = os.getenv("DATABASE_URL")
+        conn = psycopg2.connect(dsn)
+        cursor = conn.cursor()
 
-            # Перевіряємо, чи вже є створене посилання
-            cursor.execute("SELECT invited_id FROM referrals WHERE inviter_id = %s", (user_id,))
-            existing = cursor.fetchone()
+        # 🔁 Перевіряємо, чи вже є посилання
+        cursor.execute("SELECT invited_id FROM referrals WHERE inviter_id = %s", (user_id,))
+        existing = cursor.fetchone()
 
-            if existing:
-                # Якщо є — шукаємо інвайт в каналі
-                invite_code = existing[0]
-            else:
-                # Інакше створюємо новий інвайт
-                channel = interaction.guild.system_channel or interaction.channel
-                invite = await channel.create_invite(reason=f"Інвайт для {interaction.user.name}", max_uses=0, unique=True)
-                invite_code = invite.code
-
-                # Зберігаємо інвайт у БД з invited_id як інвайт-код
-                cursor.execute("""
-                    INSERT INTO referrals (inviter_id, invited_id, confirmed)
-                    VALUES (%s, %s, FALSE)
-                """, (user_id, invite_code))
-                conn.commit()
-
-            referral_link = f"https://discord.gg/{invite_code}"
-
-            await interaction.response.send_message(
-                f"📎 Ось твоє індивідуальне реферальне посилання:\n`{referral_link}`\n"
-                f"Скопій його та передай другу. Після його першого замовлення ти отримаєш бонус 🎁",
-                ephemeral=True
+        if existing:
+            invite_code = existing[0]
+        else:
+            # 🧾 Створюємо нове інвайт-посилання
+            channel = interaction.guild.system_channel or interaction.channel
+            invite = await channel.create_invite(
+                reason=f"Інвайт для {interaction.user.name}", 
+                max_uses=0, 
+                unique=True
             )
+            invite_code = invite.code
 
-            cursor.close()
-            conn.close()
+            # 💾 Запис у БД
+            cursor.execute("""
+                INSERT INTO referrals (inviter_id, invited_id, confirmed)
+                VALUES (%s, %s, FALSE)
+            """, (user_id, invite_code))
+            conn.commit()
+
+        referral_link = f"https://discord.gg/{invite_code}"
+
+        await interaction.response.send_message(
+            f"🔗 Ось твоє індивідуальне реферальне посилання:\n`{referral_link}`\n"
+            f"Скопій його та передай другу. Після його першого замовлення ти отримаєш бонус 🎁",
+            ephemeral=True
+        )
+
+        cursor.close()
+        conn.close()
+
 
 
 class ResourceButtonsView(View):
