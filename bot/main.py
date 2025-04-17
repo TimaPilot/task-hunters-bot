@@ -366,6 +366,7 @@ class CabinetButtonView(View):
 class ReferralView(View):
     def __init__(self):
         super().__init__(timeout=None)
+        self.custom_id = "referral_view"
 
         @discord.ui.button(label="🔗 Отримати посилання", style=discord.ButtonStyle.primary)
         async def get_referral_link(self, interaction: discord.Interaction, button: discord.ui.Button):
