@@ -12,7 +12,7 @@ cursor.execute("""
 CREATE TABLE IF NOT EXISTS referrals (
     id SERIAL PRIMARY KEY,
     inviter_id BIGINT NOT NULL,
-    invited_id BIGINT NOT NULL UNIQUE,
+    invited_code TEXT NOT NULL UNIQUE,
     confirmed BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )
