@@ -1,0 +1,7 @@
+CREATE TABLE referrals (
+    id SERIAL PRIMARY KEY,
+    inviter_id BIGINT NOT NULL,
+    invited_id BIGINT NOT NULL UNIQUE,
+    confirmed BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
