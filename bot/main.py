@@ -3,6 +3,7 @@ from discord.ext import commands
 from discord.ui import View, Button
 from discord import Interaction, Embed
 from dotenv import load_dotenv
+from urllib.parse import urlparse, parse_qs
 import os
 import datetime
 import psycopg2
@@ -75,8 +76,40 @@ async def ping(interaction: discord.Interaction):
 # ==============================================
 @bot.event
 async def on_member_join(member):
-    channel = bot.get_channel(1356270026688041171)  # ID твого каналу
+    # Отримуємо ID
+    invited_id = member.id
 
+    # 1️⃣ Отримуємо ref з URL (беремо з activity або name)
+    ref = None
+    if member.activity and member.activity.name:
+        parsed = urlparse(member.activity.name)
+        query = parse_qs(parsed.query)
+        if "ref" in query:
+            ref = query["ref"][0]
+
+    if ref:
+        inviter_id = int(ref)
+
+        # 2️⃣ Підключення до бази
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        cursor = conn.cursor()
+
+        # 3️⃣ Перевірка на існуючий запис
+        cursor.execute("SELECT * FROM referrals WHERE invited_id = %s", (invited_id,))
+        exists = cursor.fetchone()
+
+        if not exists:
+            cursor.execute(
+                "INSERT INTO referrals (inviter_id, invited_id) VALUES (%s, %s)",
+                (inviter_id, invited_id)
+            )
+            conn.commit()
+
+        cursor.close()
+        conn.close()
+
+    # 4️⃣ Привітання 
+    channel = bot.get_channel(1356270026688041171)  # ID твого каналу
     image_path = os.path.join(os.path.dirname(__file__), "images", "Hello.png")
     file = discord.File(image_path, filename="Hello.png")
 
@@ -86,11 +119,8 @@ async def on_member_join(member):
         color=0x8B4513
     )
     embed.set_image(url="attachment://Hello.png")
-
     await channel.send(content=member.mention, embed=embed, file=file)
-    
     role = discord.utils.get(member.guild.roles, name="Замовник 💼")
-
     if role:
         # Видаємо роль учаснику
         await member.add_roles(role)
