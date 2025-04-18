@@ -47,23 +47,40 @@ estimated_times = {
 "cleaner": "20–25 хв"
 }
 
-invites_before = []
-
 @bot.event
 async def on_ready():
     await init_db()
     print(f"✅ Logged in as {bot.user}")
-    
+
+    # Спроба синхронізувати слеш-команди
     try:
         synced = await bot.tree.sync()
         print(f"🔁 Slash-команди синхронізовано: {len(synced)}")
     except Exception as e:
         print("❌ Помилка при синхронізації слеш-команд:", e)
 
-    global invites_before
-    for guild in bot.guilds:
-        invites_before = await guild.invites()
+    # Підключення до бази даних
+    dsn = os.getenv("DATABASE_URL")
+    conn = psycopg2.connect(dsn)
+    cursor = conn.cursor()
 
+    for guild in bot.guilds:
+        invites = await guild.invites()
+
+        for invite in invites:
+            cursor.execute("""
+                INSERT INTO invites (code, uses, inviter_id)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (code) DO UPDATE SET uses = EXCLUDED.uses
+            """, (invite.code, invite.uses, invite.inviter.id))
+
+        print(f"📥 Оновлено інвайти для сервера: {guild.name}")
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    # Додавання View-класів
     bot.add_view(ResourceButtonsView())
     bot.add_view(CabinetButtonView())
     bot.add_view(ReferralView())
@@ -102,46 +119,51 @@ async def on_member_join(member):
         print(f"Роль '{role.name}' видано користувачу {member.name}")
     else:
         print("Роль 'Замовник 💼' не знайдена!")
-#Реєстрація в базі рефералів
+
+        
+    # Отримуємо всі інвайти поточної гільдії
+    invites_now = await member.guild.invites()
+
+    # Підключення до бази
     dsn = os.getenv("DATABASE_URL")
     conn = psycopg2.connect(dsn)
     cursor = conn.cursor()
 
-    # 📋 Отримуємо список інвайтів до приєднання (які були збережені при запуску)
-    global invites_before
-    invites_after = await member.guild.invites()
+    # Отримуємо список кодів, які ми раніше зберегли (усі ще не підтверджені)
+    cursor.execute("SELECT invite_code FROM referral_invites")
+    stored_codes = [row[0] for row in cursor.fetchall()]
 
-    # 🧩 Знаходимо, який інвайт використали (використання зросло)
-    used_invite = None
-    for invite in invites_after:
-        for old_invite in invites_before:
-            if invite.code == old_invite.code and invite.uses > old_invite.uses:
-                used_invite = invite
-                break
-        if used_invite:
+    used_code = None
+
+    for invite in invites_now:
+        if invite.code in stored_codes and invite.uses > 0:
+            used_code = invite.code
             break
 
-    if used_invite:
-        invite_code = used_invite.code
-        invited_id = member.id
-
-        # 🛠️ Оновлюємо invited_id в таблиці referrals
+    if used_code:
+        # Отримуємо inviter_id по invite_code
         cursor.execute("""
-            UPDATE referrals
-            SET invited_id = %s
-            WHERE invited_id = 0 AND invite_code = %s
-        """, (invited_id, invite_code))
-        conn.commit()
-        print(f"[LOG] Записано invited_id {invited_id} для інвайту {invite_code}")
+            SELECT inviter_id FROM referrals
+            WHERE invite_code = %s AND invited_id = 0
+            ORDER BY created_at DESC LIMIT 1
+        """, (used_code,))
+        result = cursor.fetchone()
 
-    else:
-        print("[LOG] Не вдалося визначити використаний інвайт")
+        if result:
+            inviter_id = result[0]
+
+            # Оновлюємо invited_id
+            cursor.execute("""
+                UPDATE referrals
+                SET invited_id = %s
+                WHERE invite_code = %s AND invited_id = 0
+            """, (member.id, used_code))
+            conn.commit()
+
+            print(f"🎯 Реферал {member.name} підтверджено! Запросив: {inviter_id}")
 
     cursor.close()
     conn.close()
-
-    # 🔁 Оновлюємо глобальний список інвайтів
-    invites_before = invites_after
 # =======================================================================
 #           [Блок: Очищення чату (крім закріплених повід.)]
 # =======================================================================
