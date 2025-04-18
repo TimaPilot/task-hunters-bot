@@ -321,6 +321,12 @@ class CabinetButtonView(View):
         cursor.close()
         conn.close()
 
+class ReferralView(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.add_item(Button(label="🎟️ Отримати посилання", style=discord.ButtonStyle.primary, custom_id="get_ref_link"))
+        self.add_item(Button(label="👥 Мої реферали", style=discord.ButtonStyle.secondary, custom_id="my_referrals"))
+
 class ResourceButtonsView(View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -476,6 +482,28 @@ async def on_interaction(interaction: discord.Interaction):
                 await notify_channel.send(
                     "💬 Будемо раді бачити Ваш відгук в каналі <#1356362829099303160>!"
                 )
+
+        elif cid == "get_ref_link":
+            guild = interaction.guild
+            user = interaction.user
+            invites = await guild.invites()
+
+            # Шукаємо інвайт користувача
+            existing_invite = next((i for i in invites if i.inviter.id == user.id), None)
+
+            if existing_invite:
+                invite_url = existing_invite.url
+            else:
+                # Створюємо новий інвайт
+                channel = guild.system_channel or guild.text_channels[0]
+                new_invite = await channel.create_invite(max_uses=0, unique=True, reason=f"Реферальне посилання для {user.name}")
+                invite_url = new_invite.url
+
+            await interaction.response.send_message(
+                f"🔗 Ось твоє реферальне посилання:\n{invite_url}\n"
+                "Роздай його друзям! Після першого замовлення твого реферала — ти отримаєш бонус!",
+                ephemeral=True
+            )
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
