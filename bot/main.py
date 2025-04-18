@@ -4,6 +4,7 @@ from discord.ui import View, Button
 from discord import Interaction, Embed
 from dotenv import load_dotenv
 from urllib.parse import urlparse, parse_qs
+from datetime import datetime
 import asyncio
 import os
 import datetime
@@ -120,7 +121,7 @@ async def on_member_join(member):
     else:
         print("Роль 'Замовник 💼' не знайдена!")
 
-        
+
     # Отримуємо всі інвайти поточної гільдії
     invites_now = await member.guild.invites()
 
@@ -130,7 +131,7 @@ async def on_member_join(member):
     cursor = conn.cursor()
 
     # Отримуємо список кодів, які ми раніше зберегли (усі ще не підтверджені)
-    cursor.execute("SELECT invite_code FROM referral_invites")
+    cursor.execute("SELECT code, uses FROM invites")
     stored_codes = [row[0] for row in cursor.fetchall()]
 
     used_code = None
@@ -392,59 +393,45 @@ class CabinetButtonView(View):
 #           [Class: Вигляд кнопки реферальна система]
 # ===============================================================
 # ========================= [Referral View] =========================
+dsn = os.getenv("DATABASE_URL")
+conn = psycopg2.connect(dsn)
+cursor = conn.cursor()
 
 class ReferralView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
         self.custom_id = "get_referral_link"
 
-    @discord.ui.button(
-        label="📎 Отримати посилання",
-        style=discord.ButtonStyle.primary
-    )
+    @discord.ui.button(label="Отримати посилання", style=discord.ButtonStyle.primary)
     async def get_referral_link(self, interaction: discord.Interaction, button: discord.ui.Button):
         user_id = interaction.user.id
+        invite_code = None
 
-        # Підключення до БД
-        dsn = os.getenv("DATABASE_URL")
-        conn = psycopg2.connect(dsn)
-        cursor = conn.cursor()
-
-        # Перевірка: чи є запис з цим inviter_id
-        cursor.execute("SELECT invited_id FROM referrals WHERE inviter_id = %s", (user_id,))
-        existing = cursor.fetchone()
-
-        if existing:
-            # Якщо є — беремо наявного invited_id
-            invited_id = existing[0]
-        else:
-            # Якщо нема — створюємо інвайт
+        # Перевірка на існування інвайту в таблиці
+        cursor.execute("SELECT 1 FROM invites WHERE inviter_id = %s", (user_id,))
+        if cursor.fetchone() is None:
+            # Якщо не існує, створюємо новий інвайт
             channel = interaction.guild.system_channel or interaction.channel
             invite = await channel.create_invite(
-                reason=f"Інвайт для {interaction.user.name}",
-                max_uses=0,
-                unique=True
+                reason=f"Інвайт для {interaction.user.name}", max_uses=0, unique=True
             )
-            invite_code = invite.code  # тільки для відображення
-            invited_id = 0  # тимчасове значення, бо ще не відомо, хто приєднається
+            invite_code = invite.code
 
-            # Зберігаємо лише inviter_id (user_id) — invited_id буде оновлений пізніше
+            # Додаємо новий інвайт в базу
             cursor.execute("""
-                INSERT INTO referrals (inviter_id, invited_id, confirmed)
-                VALUES (%s, %s, FALSE)
-            """, (user_id, invited_id))
+                INSERT INTO invites (code, uses, inviter_id, created_at)
+                VALUES (%s, %s, %s, %s)
+            """, (invite_code, 0, user_id, datetime.utcnow()))
             conn.commit()
 
-        referral_link = f"https://discord.gg/{invite.code}"
-
+        # Виводимо посилання на інвайт
+        referral_link = f"https://discord.gg/{invite_code}"
         await interaction.response.send_message(
-            f"📎 Ось твоє індивідуальне реферальне посилання:\n`{referral_link}`\n"
-            "Скопіюй його та передай другу. Після його першого замовлення ти отримаєш бонус 🎁",
+            f"Ось твоє індивідуальне реферальне посилання:\n{referral_link}\n"
+            "Скопій його та передай другу. Після його першого замовлення ти отримуєш бонус 🎁",
             ephemeral=True
         )
 
-        cursor.close()
-        conn.close()
 
 
 class ResourceButtonsView(View):
