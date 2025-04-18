@@ -9,13 +9,12 @@ conn = psycopg2.connect(dsn)
 cursor = conn.cursor()
 
 cursor.execute("""
-CREATE TABLE IF NOT EXISTS referrals (
-    id SERIAL PRIMARY KEY,
-    inviter_id BIGINT NOT NULL,
-    invited_code TEXT NOT NULL UNIQUE,
-    confirmed BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)
+    CREATE TABLE IF NOT EXISTS invites (
+        code TEXT PRIMARY KEY,
+        uses INTEGER NOT NULL,
+        inviter_id BIGINT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
 """)
 
 conn.commit()
