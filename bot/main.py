@@ -98,42 +98,28 @@ async def on_member_join(member):
     else:
         print("Роль 'Замовник 💼' не знайдена!")
 
-    invites_before = await member.guild.invites()
-    await asyncio.sleep(2)  # даємо Discord час оновити запрошення
-    invites_after = await member.guild.invites()
+    invites = await member.guild.invites()
+    used_invite = max(invites, key=lambda i: i.uses)
 
-    used_invite = None
-    for invite in invites_after:
-        for old_invite in invites_before:
-            if invite.code == old_invite.code and invite.uses > old_invite.uses:
-                used_invite = invite.code
-                break
-
-    if not used_invite:
-        print("Не вдалося визначити, який інвайт використано.")
-        return
-
-    print(f"Користувач {member.name} зайшов за інвайтом {used_invite}")
-
-    # ===== Зберігаємо invited_id у таблицю referrals =====
     dsn = os.getenv("DATABASE_URL")
     conn = psycopg2.connect(dsn)
     cursor = conn.cursor()
 
-    cursor.execute("SELECT inviter_id FROM referrals WHERE invited_id = %s", (used_invite,))
-    result = cursor.fetchone()
+    # Перевіряємо, чи вже записаний цей invited_id
+    cursor.execute("SELECT * FROM referrals WHERE invited_id = %s", (used_invite.code,))
+    referral = cursor.fetchone()
 
-    if result:
-        inviter_id = result[0]
+    if referral:
+        # Оновлюємо запис — підтверджуємо реферал
         cursor.execute("""
             UPDATE referrals
-            SET invited_id = %s
+            SET confirmed = TRUE
             WHERE invited_id = %s
-        """, (member.id, used_invite))
+        """, (used_invite.code,))
         conn.commit()
-        print(f"Запис оновлено: {inviter_id} запросив {member.id}")
+        print(f"✅ Реферал підтверджено для {member.name}")
     else:
-        print(f"Інвайт {used_invite} не знайдено в таблиці referrals.")
+        print(f"⚠️ Інвайт {used_invite.code} не знайдено в базі")
 
     cursor.close()
     conn.close()
@@ -369,54 +355,55 @@ class CabinetButtonView(View):
 class ReferralView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
+        self.custom_id = "get_referral_link"
 
     @discord.ui.button(
-        label="🔗 Отримати посилання",
-        style=discord.ButtonStyle.primary,
-        custom_id="get_referral_link"
+        label="📎 Отримати посилання",
+        style=discord.ButtonStyle.primary
     )
     async def get_referral_link(self, interaction: discord.Interaction, button: discord.ui.Button):
         user_id = interaction.user.id
 
-        # Підключення до бази
+        # Підключення до БД
         dsn = os.getenv("DATABASE_URL")
         conn = psycopg2.connect(dsn)
         cursor = conn.cursor()
 
-        # Перевірка наявного інвайту
-        cursor.execute("SELECT invited_code FROM referrals WHERE inviter_id = %s", (user_id,))
+        # Перевірка: чи є запис з цим inviter_id
+        cursor.execute("SELECT invited_id FROM referrals WHERE inviter_id = %s", (user_id,))
         existing = cursor.fetchone()
 
         if existing:
-            invite_code = existing[0]
+            # Якщо є — беремо наявного invited_id
+            invited_id = existing[0]
         else:
-            # Створення інвайту
+            # Якщо нема — створюємо інвайт
             channel = interaction.guild.system_channel or interaction.channel
             invite = await channel.create_invite(
                 reason=f"Інвайт для {interaction.user.name}",
                 max_uses=0,
                 unique=True
             )
-            invite_code = invite.code
+            invite_code = invite.code  # тільки для відображення
+            invited_id = 0  # тимчасове значення, бо ще не відомо, хто приєднається
 
-            # Збереження в БД
+            # Зберігаємо лише inviter_id (user_id) — invited_id буде оновлений пізніше
             cursor.execute("""
-                INSERT INTO referrals (inviter_id, invited_code, confirmed)
+                INSERT INTO referrals (inviter_id, invited_id, confirmed)
                 VALUES (%s, %s, FALSE)
-            """, (user_id, invite_code))
+            """, (user_id, invited_id))
             conn.commit()
 
-        referral_link = f"https://discord.gg/{invite_code}"
+        referral_link = f"https://discord.gg/{invite.code}"
 
         await interaction.response.send_message(
             f"📎 Ось твоє індивідуальне реферальне посилання:\n`{referral_link}`\n"
-            "Скопій його та передай другу. Після його першого замовлення ти отримаєш бонус 🎁",
+            "Скопіюй його та передай другу. Після його першого замовлення ти отримаєш бонус 🎁",
             ephemeral=True
         )
 
         cursor.close()
         conn.close()
-
 
 
 class ResourceButtonsView(View):
