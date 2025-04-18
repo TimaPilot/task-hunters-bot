@@ -408,12 +408,16 @@ class ReferralView(discord.ui.View):
         invite_code = None
 
         # Перевірка на існування інвайту в таблиці
-        cursor.execute("SELECT 1 FROM invites WHERE inviter_id = %s", (user_id,))
-        if cursor.fetchone() is None:
-            # Якщо не існує, створюємо новий інвайт
+        cursor.execute("SELECT code FROM invites WHERE inviter_id = %s", (user_id,))
+        existing_invite = cursor.fetchone()
+
+        if existing_invite is None:
+            # Якщо інвайт не існує, створюємо новий
             channel = interaction.guild.system_channel or interaction.channel
             invite = await channel.create_invite(
-                reason=f"Інвайт для {interaction.user.name}", max_uses=0, unique=True
+                reason=f"Запрошення для {interaction.user.name}",
+                max_uses=0,
+                unique=True
             )
             invite_code = invite.code
 
@@ -421,16 +425,22 @@ class ReferralView(discord.ui.View):
             cursor.execute("""
                 INSERT INTO invites (code, uses, inviter_id, created_at)
                 VALUES (%s, %s, %s, %s)
-            """, (invite_code, 0, user_id, datetime.utcnow()))
+                """, (invite_code, 0, user_id, datetime.utcnow()))
             conn.commit()
+
+        else:
+            invite_code = existing_invite[0]
 
         # Виводимо посилання на інвайт
         referral_link = f"https://discord.gg/{invite_code}"
         await interaction.response.send_message(
             f"Ось твоє індивідуальне реферальне посилання:\n{referral_link}\n"
-            "Скопій його та передай другу. Після його першого замовлення ти отримуєш бонус 🎁",
+            "Скопій його та передай другу. Після його першого замовлення ти отримаєш бонус 🎁",
             ephemeral=True
         )
+
+        cursor.close()
+        conn.close()
 
 
 
