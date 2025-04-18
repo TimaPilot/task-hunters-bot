@@ -48,10 +48,16 @@ estimated_times = {
 "cleaner": "20–25 хв"
 }
 
+invite_cache = {}
+
 @bot.event
 async def on_ready():
     await init_db()
     print(f"✅ Logged in as {bot.user}")
+
+    for guild in bot.guilds:
+        invites = await guild.invites()
+        invite_cache[guild.id] = invites
 
     # Спроба синхронізувати слеш-команди
     try:
