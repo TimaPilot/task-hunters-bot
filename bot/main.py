@@ -67,7 +67,7 @@ async def on_ready():
         print("❌ Помилка при синхронізації слеш-команд:", e)
 
     bot.add_view(ResourceButtonsView())
-    bot.add_view(CabinetButtonView())
+#    bot.add_view(CabinetButtonView())
 
 # ==============================================
 #           [Блок: Slash команда]
@@ -84,6 +84,41 @@ async def ping(interaction: discord.Interaction):
 # ==============================================
 @bot.event
 async def on_member_join(member):
+    guild = member.guild
+    new_invites = await guild.invites()
+    old_invites = invite_cache.get(guild.id, [])
+
+    used_invite = None
+    for invite in new_invites:
+        for old in old_invites:
+            if invite.code == old.code and invite.uses > old.uses:
+                used_invite = invite
+                break
+        if used_invite:
+            break
+
+    invite_cache[guild.id] = new_invites  # оновлюємо кеш
+
+    if used_invite:
+        inviter_id = used_invite.inviter.id
+        invited_id = member.id
+
+        # зберігаємо у базу
+        try:
+            conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO referrals (inviter_id, invited_id)
+                VALUES (%s, %s)
+                ON CONFLICT (invited_id) DO NOTHING
+            """, (inviter_id, invited_id))
+            conn.commit()
+            cursor.close()
+            conn.close()
+            print(f"💾 Додано реферал: {inviter_id} → {invited_id}")
+        except Exception as e:
+            print("❌ Помилка при збереженні реферала:", e)
+
     # 4️⃣ Привітання 
     channel = bot.get_channel(1356270026688041171)  # ID твого каналу
     image_path = os.path.join(os.path.dirname(__file__), "images", "Hello.png")
