@@ -529,12 +529,15 @@ async def on_interaction(interaction: discord.Interaction):
                 conn = psycopg2.connect(os.getenv("DATABASE_URL"))
                 cursor = conn.cursor()
 
-                # Чи вже є виконані замовлення?
+                print("📥 Перевірка реферала почалась...")
+
                 cursor.execute("""
                     SELECT COUNT(*) FROM orders
                     WHERE customer_id = %s AND status = 'Виконано'
                 """, (str(customer_id),))
                 completed_orders = cursor.fetchone()[0]
+
+                print(f"🔍 Кількість виконаних замовлень для {customer_id}: {completed_orders}")
 
                 if completed_orders == 1:
                     cursor.execute("""
@@ -542,6 +545,8 @@ async def on_interaction(interaction: discord.Interaction):
                         SET confirmed = TRUE
                         WHERE invited_id = %s
                     """, (str(customer_id),))
+                    conn.commit()
+                    print("✅ Реферал підтверджено!")
 
                 cursor.close()
                 conn.close()
