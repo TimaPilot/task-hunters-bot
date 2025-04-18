@@ -47,6 +47,7 @@ estimated_times = {
 "cleaner": "20–25 хв"
 }
 
+invites_before = []
 
 @bot.event
 async def on_ready():
@@ -58,6 +59,10 @@ async def on_ready():
         print(f"🔁 Slash-команди синхронізовано: {len(synced)}")
     except Exception as e:
         print("❌ Помилка при синхронізації слеш-команд:", e)
+
+    global invites_before
+    for guild in bot.guilds:
+        invites_before = await guild.invites()
 
     bot.add_view(ResourceButtonsView())
     bot.add_view(CabinetButtonView())
@@ -97,32 +102,46 @@ async def on_member_join(member):
         print(f"Роль '{role.name}' видано користувачу {member.name}")
     else:
         print("Роль 'Замовник 💼' не знайдена!")
-
-    invites = await member.guild.invites()
-    used_invite = max(invites, key=lambda i: i.uses)
-
+#Реєстрація в базі рефералів
     dsn = os.getenv("DATABASE_URL")
     conn = psycopg2.connect(dsn)
     cursor = conn.cursor()
 
-    # Перевіряємо, чи вже записаний цей invited_id
-    cursor.execute("SELECT * FROM referrals WHERE invited_id = %s", (used_invite.code,))
-    referral = cursor.fetchone()
+    # 📋 Отримуємо список інвайтів до приєднання (які були збережені при запуску)
+    global invites_before
+    invites_after = await member.guild.invites()
 
-    if referral:
-        # Оновлюємо запис — підтверджуємо реферал
+    # 🧩 Знаходимо, який інвайт використали (використання зросло)
+    used_invite = None
+    for invite in invites_after:
+        for old_invite in invites_before:
+            if invite.code == old_invite.code and invite.uses > old_invite.uses:
+                used_invite = invite
+                break
+        if used_invite:
+            break
+
+    if used_invite:
+        invite_code = used_invite.code
+        invited_id = member.id
+
+        # 🛠️ Оновлюємо invited_id в таблиці referrals
         cursor.execute("""
             UPDATE referrals
-            SET confirmed = TRUE
-            WHERE invited_id = %s
-        """, (used_invite.code,))
+            SET invited_id = %s
+            WHERE invited_id = 0 AND invite_code = %s
+        """, (invited_id, invite_code))
         conn.commit()
-        print(f"✅ Реферал підтверджено для {member.name}")
+        print(f"[LOG] Записано invited_id {invited_id} для інвайту {invite_code}")
+
     else:
-        print(f"⚠️ Інвайт {used_invite.code} не знайдено в базі")
+        print("[LOG] Не вдалося визначити використаний інвайт")
 
     cursor.close()
     conn.close()
+
+    # 🔁 Оновлюємо глобальний список інвайтів
+    invites_before = invites_after
 # =======================================================================
 #           [Блок: Очищення чату (крім закріплених повід.)]
 # =======================================================================
