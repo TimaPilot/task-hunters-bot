@@ -525,6 +525,7 @@ async def on_interaction(interaction: discord.Interaction):
                 )
 
             # Підтверджуємо реферал, якщо це перше замовлення
+                        # Підтверджуємо реферал, якщо це перше замовлення
             try:
                 conn = psycopg2.connect(os.getenv("DATABASE_URL"))
                 cursor = conn.cursor()
@@ -540,6 +541,7 @@ async def on_interaction(interaction: discord.Interaction):
                 print(f"🔍 Кількість виконаних замовлень для {customer_id}: {completed_orders}")
 
                 if completed_orders == 1:
+                    # Оновлюємо confirmed у таблиці referrals
                     cursor.execute("""
                         UPDATE referrals
                         SET confirmed = TRUE
@@ -548,10 +550,34 @@ async def on_interaction(interaction: discord.Interaction):
                     conn.commit()
                     print("✅ Реферал підтверджено!")
 
+                    # Отримуємо inviter_id
+                    cursor.execute("""
+                        SELECT inviter_id FROM referrals
+                        WHERE invited_id = %s
+                    """, (str(customer_id),))
+                    inviter_row = cursor.fetchone()
+
+                    if inviter_row:
+                        inviter_id = int(inviter_row[0])
+
+                        # Надсилаємо повідомлення в канал по ID
+                        cabinet_channel_id = 1361872158435053759  # 🔁 заміни на реальний ID каналу "Особистий кабінет"
+                        cabinet_channel = bot.get_channel(cabinet_channel_id)
+
+                        if cabinet_channel:
+                            await cabinet_channel.send(
+                                f"🎉 <@{inviter_id}>, твій реферал <@{customer_id}> підтверджений! Він виконав перше замовлення. Дякуємо за активність ❤️"
+                            )
+                            print(f"📨 Повідомлення надіслано в канал {cabinet_channel_id}")
+                        else:
+                            print(f"❌ Канал з ID {cabinet_channel_id} не знайдено!")
+
                 cursor.close()
                 conn.close()
+
             except Exception as e:
                 print("❌ Помилка при підтвердженні реферала:", e)
+
 
         elif cid == "get_ref_link":
             guild = interaction.guild
