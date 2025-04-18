@@ -533,17 +533,15 @@ async def on_interaction(interaction: discord.Interaction):
                 cursor.execute("""
                     SELECT COUNT(*) FROM orders
                     WHERE customer_id = %s AND status = 'Виконано'
-                """, (customer_id,))
+                """, (str(customer_id),))
                 completed_orders = cursor.fetchone()[0]
 
                 if completed_orders == 1:
-                    # Це перше виконане замовлення — підтверджуємо реферал
                     cursor.execute("""
                         UPDATE referrals
                         SET confirmed = TRUE
                         WHERE invited_id = %s
-                    """, (customer_id,))
-                    conn.commit()
+                    """, (str(customer_id),))
 
                 cursor.close()
                 conn.close()
