@@ -524,6 +524,32 @@ async def on_interaction(interaction: discord.Interaction):
                     "💬 Будемо раді бачити Ваш відгук в каналі <#1356362829099303160>!"
                 )
 
+            # Підтверджуємо реферал, якщо це перше замовлення
+            try:
+                conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+                cursor = conn.cursor()
+
+                # Чи вже є виконані замовлення?
+                cursor.execute("""
+                    SELECT COUNT(*) FROM orders
+                    WHERE customer_id = %s AND status = 'Виконано'
+                """, (customer_id,))
+                completed_orders = cursor.fetchone()[0]
+
+                if completed_orders == 1:
+                    # Це перше виконане замовлення — підтверджуємо реферал
+                    cursor.execute("""
+                        UPDATE referrals
+                        SET confirmed = TRUE
+                        WHERE invited_id = %s
+                    """, (customer_id,))
+                    conn.commit()
+
+                cursor.close()
+                conn.close()
+            except Exception as e:
+                print("❌ Помилка при підтвердженні реферала:", e)
+
         elif cid == "get_ref_link":
             guild = interaction.guild
             user = interaction.user
