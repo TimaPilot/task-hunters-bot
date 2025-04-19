@@ -524,60 +524,6 @@ async def on_interaction(interaction: discord.Interaction):
                     "💬 Будемо раді бачити Ваш відгук в каналі <#1356362829099303160>!"
                 )
 
-            # Підтверджуємо реферал, якщо це перше замовлення
-                        # Підтверджуємо реферал, якщо це перше замовлення
-            try:
-                conn = psycopg2.connect(os.getenv("DATABASE_URL"))
-                cursor = conn.cursor()
-
-                print("📥 Перевірка реферала почалась...")
-
-                cursor.execute("""
-                    SELECT COUNT(*) FROM orders
-                    WHERE customer_id = %s AND status = 'Виконано'
-                """, (str(customer_id),))
-                completed_orders = cursor.fetchone()[0]
-
-                print(f"🔍 Кількість виконаних замовлень для {customer_id}: {completed_orders}")
-
-                if completed_orders == 1:
-                    # Оновлюємо confirmed у таблиці referrals
-                    cursor.execute("""
-                        UPDATE referrals
-                        SET confirmed = TRUE
-                        WHERE invited_id = %s
-                    """, (str(customer_id),))
-                    conn.commit()
-                    print("✅ Реферал підтверджено!")
-
-                    # Отримуємо inviter_id
-                    cursor.execute("""
-                        SELECT inviter_id FROM referrals
-                        WHERE invited_id = %s
-                    """, (str(customer_id),))
-                    inviter_row = cursor.fetchone()
-
-                    if inviter_row:
-                        inviter_id = int(inviter_row[0])
-
-                        # Надсилаємо повідомлення в канал по ID
-                        cabinet_channel_id = 1361872158435053759  # 🔁 заміни на реальний ID каналу "Особистий кабінет"
-                        cabinet_channel = bot.get_channel(cabinet_channel_id)
-
-                        if cabinet_channel:
-                            await cabinet_channel.send(
-                                f"🎉 <@{inviter_id}>, твій реферал <@{customer_id}> підтверджений! Він виконав перше замовлення. Дякуємо за активність ❤️"
-                            )
-                            print(f"📨 Повідомлення надіслано в канал {cabinet_channel_id}")
-                        else:
-                            print(f"❌ Канал з ID {cabinet_channel_id} не знайдено!")
-
-                cursor.close()
-                conn.close()
-
-            except Exception as e:
-                print("❌ Помилка при підтвердженні реферала:", e)
-
 
         elif cid == "get_ref_link":
             guild = interaction.guild
@@ -600,6 +546,100 @@ async def on_interaction(interaction: discord.Interaction):
                 "Роздай його друзям! Після першого замовлення твого реферала — ти отримаєш бонус!",
                 ephemeral=True
             )
+
+            try:
+                conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+                cursor = conn.cursor()
+
+                cursor.execute("""
+                    SELECT COUNT(*) FROM orders
+                    WHERE customer_id = %s AND status = 'Виконано'
+                """, (str(customer_id),))
+                completed_orders = cursor.fetchone()[0]
+
+                if completed_orders == 1:
+                    # Оновлюємо confirmed у таблиці referrals
+                    cursor.execute("""
+                        UPDATE referrals
+                        SET confirmed = TRUE
+                        WHERE invited_id = %s
+                    """, (str(customer_id),))
+                    conn.commit()
+
+                    # Отримуємо inviter_id
+                    cursor.execute("""
+                        SELECT inviter_id FROM referrals
+                        WHERE invited_id = %s
+                    """, (str(customer_id),))
+                    inviter_row = cursor.fetchone()
+
+                    if inviter_row:
+                        inviter_id = int(inviter_row[0])
+
+                        # Надсилаємо повідомлення в канал по ID
+                        cabinet_channel_id = 1356361405275281418  # 🔁 ID каналу "Особистий кабінет"
+                        cabinet_channel = bot.get_channel(cabinet_channel_id)
+
+                        if cabinet_channel:
+                            await cabinet_channel.send(
+                                f"🎉 <@{inviter_id}>, твій реферал <@{customer_id}> підтверджений! Він виконав перше замовлення. Дякуємо за активність ❤️"
+                            )
+
+                cursor.close()
+                conn.close()
+
+            except Exception as e:
+                print("❌ Помилка при підтвердженні реферала:", e)
+
+        elif cid == "my_referrals":
+            user_id = interaction.user.id
+
+            try:
+                conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+                cursor = conn.cursor()
+
+                # Отримуємо всіх рефералів
+                cursor.execute("""
+                    SELECT invited_id, confirmed FROM referrals
+                    WHERE inviter_id = %s
+                """, (str(user_id),))
+                referrals = cursor.fetchall()
+
+                total = len(referrals)
+                confirmed = sum(1 for _, is_confirmed in referrals if is_confirmed)
+
+                if referrals:
+                    mention_list = []
+                    for invited_id, is_confirmed in referrals:
+                        status = "✅" if is_confirmed else "❌"
+                        mention_list.append(f"{status} <@{invited_id}>")
+
+                    list_text = "\n".join(mention_list)
+                else:
+                    list_text = "😔 У тебе ще немає рефералів."
+
+                embed = discord.Embed(
+                    title="👥 Твої реферали",
+                    description=(
+                        f"📌 Запрошено всього: **{total}**\n"
+                        f"🟢 Підтверджено: **{confirmed}**\n\n"
+                        f"{list_text}"
+                    ),
+                    color=0x00ffcc
+                )
+
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+
+                cursor.close()
+                conn.close()
+
+            except Exception as e:
+                print("❌ Помилка при показі рефералів:", e)
+                await interaction.response.send_message(
+                    "⚠️ Сталася помилка при завантаженні твоїх рефералів.",
+                    ephemeral=True
+                )
+
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
