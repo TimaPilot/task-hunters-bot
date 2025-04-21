@@ -353,6 +353,94 @@ async def check_and_grant_referral_bonus(guild: discord.Guild, inviter_id: int):
     except Exception as e:
         print("❌ Помилка при нарахуванні бонусів:", e)
 
+# ...............................................................
+#           [Блок: Використання знижки]
+# ............................................................... 
+async def get_user_discount_and_update(user_id: int) -> int:
+    try:
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT free_orders, permanent_discount, used_discount_10
+            FROM user_bonuses
+            WHERE user_id = %s
+        """, (user_id,))
+        row = cursor.fetchone()
+
+        discount = 0
+
+        if row:
+            free_orders, permanent_discount, used_discount_10 = row
+
+            if free_orders > 0:
+                discount = 100
+                cursor.execute("""
+                    UPDATE user_bonuses
+                    SET free_orders = free_orders - 1
+                    WHERE user_id = %s
+                """, (user_id,))
+                print(f"🎁 Використано безкоштовне замовлення для {user_id}")
+
+            elif permanent_discount == 10 and not used_discount_10:
+                discount = 10
+                cursor.execute("""
+                    UPDATE user_bonuses
+                    SET used_discount_10 = TRUE
+                    WHERE user_id = %s
+                """, (user_id,))
+                print(f"💸 Використано одноразову знижку 10% для {user_id}")
+
+            elif permanent_discount > 0:
+                discount = permanent_discount
+                print(f"🔁 Використано постійну знижку {permanent_discount}% для {user_id}")
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return discount
+
+    except Exception as e:
+        print("❌ Помилка при визначенні знижки:", e)
+        return 0
+
+# ...............................................................
+#           [Блок: Повідомлення про знижку у замовника]
+# ............................................................... 
+async def get_customer_bonus_text(user_id: int) -> str:
+    try:
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT free_orders, permanent_discount, used_discount_10
+            FROM user_bonuses
+            WHERE user_id = %s
+        """, (user_id,))
+        row = cursor.fetchone()
+
+        cursor.close()
+        conn.close()
+
+        if not row:
+            return ""
+
+        free_orders, permanent_discount, used_discount_10 = row
+
+        if free_orders > 0:
+            return f"💎 Клієнт має бонус: {free_orders} безкоштовне замовлення"
+        elif permanent_discount > 0 and not used_discount_10:
+            return f"💸 Клієнт має бонус: одноразова знижка {permanent_discount}%"
+        elif permanent_discount > 0:
+            return f"🔁 Клієнт має постійну знижку {permanent_discount}%"
+        else:
+            return ""
+
+    except Exception as e:
+        print("❌ Помилка при перевірці бонусу клієнта:", e)
+        return ""
+
 # ===============================================================
 #           [Class: Вигляд кнопки особистий кабінет]
 # ===============================================================
@@ -516,15 +604,27 @@ async def on_interaction(interaction: discord.Interaction):
 
             order_id = await save_order_to_db(order_data)
             await interaction.message.delete()
+
+            # ⬇️ Додаємо визначення бонусу
+            bonus_text = await get_customer_bonus_text(user.id)
+
             channel = discord.utils.get(interaction.guild.text_channels, name="✅-виконання-замовлень")
             if channel:
+                content = f"📦 Надійшло нове замовлення на **{selected}** від {user.mention}"
+                
+                if bonus_text:
+                    content += f"\n{bonus_text}"
+
                 await channel.send(
-                    f"🆕 Надійшло нове замовлення на **{selected}** від {user.mention}",
+                    content,
                     view=OrderProgressView(user, cid, order_id, stage="new")
                 )
+
             await interaction.response.send_message(
-                f"📨 Ваш запит на **{selected}** успішно зареєстровано. Очікуйте підтвердження.", ephemeral=True
-            )
+                f"🧾 Ваш запит на **{selected}** успішно зареєстровано. Очікуйте підтвердження.",
+                ephemeral=True
+)
+
 
         elif cid.startswith("accept_order_"):
             order_id = int(cid.replace("accept_order_", ""))
