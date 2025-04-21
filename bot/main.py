@@ -646,7 +646,7 @@ async def on_interaction(interaction: discord.Interaction):
                         await check_and_grant_referral_bonus(interaction.guild, inviter_id)
 
                         # Надсилаємо повідомлення в канал по ID
-                        cabinet_channel_id = 1356361405275281418  # 🔁 ID каналу "Особистий кабінет"
+                        cabinet_channel_id = 1361872158435053759  # 🔁 ID каналу "Особистий кабінет"
                         cabinet_channel = bot.get_channel(cabinet_channel_id)
 
                         if cabinet_channel:
