@@ -270,6 +270,10 @@ def get_total_spent(customer_id: int):
 
     return total_spent
 
+
+# ...............................................................
+#           [Блок: нагорода за рефералку]
+# ............................................................... 
 async def check_and_grant_referral_bonus(guild: discord.Guild, inviter_id: int):
     try:
         conn = psycopg2.connect(os.getenv("DATABASE_URL"))
@@ -303,7 +307,7 @@ async def check_and_grant_referral_bonus(guild: discord.Guild, inviter_id: int):
         bonus_dict = dict(zip(columns, user_bonus))
 
         updates = []
-        log_channel_id = 1356361405275281418  # Особистий кабінет
+        log_channel_id = 1361872158435053759  # Особистий кабінет
         channel = guild.get_channel(log_channel_id)
 
         member = await guild.fetch_member(inviter_id)
@@ -610,7 +614,10 @@ async def on_interaction(interaction: discord.Interaction):
                 await notify_channel.send(
                     "💬 Будемо раді бачити Ваш відгук в каналі <#1356362829099303160>!"
                 )
-                
+
+# ...............................................................
+#           [Блок: підтвердження реферала]
+# ...............................................................                
             try:
                 conn = psycopg2.connect(os.getenv("DATABASE_URL"))
                 cursor = conn.cursor()
@@ -620,12 +627,9 @@ async def on_interaction(interaction: discord.Interaction):
                     WHERE customer_id = %s AND status = 'Виконано'
                 """, (str(customer_id),))
                 completed_orders = cursor.fetchone()[0]
-                print(f"🔍 Перевірка для customer_id: {customer_id}")
-                print(f"🔍 Виконаних замовлень: {completed_orders}")
 
 
                 if completed_orders == 1:
-                    print(f"✅ Підтверджуємо реферал для: {customer_id}")
                     # Оновлюємо confirmed у таблиці referrals
                     cursor.execute("""
                         UPDATE referrals
@@ -660,7 +664,9 @@ async def on_interaction(interaction: discord.Interaction):
             except Exception as e:
                 print("❌ Помилка при підтвердженні реферала:", e)
 
-
+# ...............................................................
+#           [Блок: створення реферального посилання]
+# ............................................................... 
         elif cid == "get_ref_link":
             guild = interaction.guild
             user = interaction.user
@@ -683,6 +689,9 @@ async def on_interaction(interaction: discord.Interaction):
                 ephemeral=True
             )
 
+# ...............................................................
+#           [Блок: кнопка "Мої реферали"]
+# ............................................................... 
         elif cid == "my_referrals":
             user_id = interaction.user.id
 
