@@ -51,11 +51,16 @@ async def init_db():
 async def save_order_to_db(order_data):
     conn = await get_connection()
     row = await conn.fetchrow("""
-        INSERT INTO orders (customer, customer_id, details, hunter, status)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO orders (customer, customer_id, details, hunter, status, discount_percent)
+        VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING id;
-    """, order_data["customer"], order_data["customer_id"],
-         order_data["details"], order_data["hunter"], order_data["status"])
+    """, 
+    order_data["customer"], 
+    order_data["customer_id"], 
+    order_data["details"], 
+    order_data["hunter"], 
+    order_data["status"],
+    order_data.get("discount_percent"))  # None якщо немає
     await conn.close()
     return row["id"]
 
