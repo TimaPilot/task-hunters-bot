@@ -312,35 +312,39 @@ async def check_and_grant_referral_bonus(guild: discord.Guild, inviter_id: int):
 
         member = await guild.fetch_member(inviter_id)
 
-        # За 1 реферала
-        if confirmed_count >= 1 and not bonus_dict["used_bonus_1"]:
-            updates.append("used_bonus_1 = TRUE")
-            updates.append("permanent_discount = 10")
-            await channel.send(f"💰 <@{inviter_id}>, ти отримав **одноразову знижку 10%** за першого реферала!")
-
-        # За 3 реферали
-        if confirmed_count >= 3 and not bonus_dict["used_bonus_3"]:
-            updates.append("used_bonus_3 = TRUE")
-            updates.append("free_orders = free_orders + 1")
-            await channel.send(f"🎁 <@{inviter_id}>, ти отримав **1 безкоштовне замовлення** за 3 реферали!")
-
-        # За 5 рефералів
-        if confirmed_count >= 5 and not bonus_dict["used_bonus_5"]:
-            updates.append("used_bonus_5 = TRUE")
-            updates.append("free_orders = free_orders + 1")
-            role = discord.utils.get(guild.roles, name="Амбасадор")
-            if role:
-                await member.add_roles(role)
-            await channel.send(f"👑 <@{inviter_id}>, ти отримав **ще 1 безкоштовне замовлення та роль `Амбасадор`** за 5 рефералів!")
-
         # За 10 рефералів
         if confirmed_count >= 10 and not bonus_dict["used_bonus_10"]:
+             # Постійна знижка
             updates.append("used_bonus_10 = TRUE")
             updates.append("permanent_discount = 10")
             role = discord.utils.get(guild.roles, name="VIP Амбасадор")
             if role:
                 await member.add_roles(role)
             await channel.send(f"💎 <@{inviter_id}>, ти отримав **роль `VIP Амбасадор` та постійну знижку 10%** за 10 рефералів!")
+ 
+        # За 5 рефералів
+        elif confirmed_count >= 5 and not bonus_dict["used_bonus_5"]:
+             # Безкоштовне замовлення + роль
+            updates.append("used_bonus_5 = TRUE")
+            updates.append("free_orders = free_orders + 1")
+            role = discord.utils.get(guild.roles, name="Амбасадор")
+            if role:
+                await member.add_roles(role)
+            await channel.send(f"👑 <@{inviter_id}>, ти отримав **ще 1 безкоштовне замовлення та роль `Амбасадор`** за 5 рефералів!")
+        
+        # За 3 реферали
+        elif confirmed_count >= 3 and not bonus_dict["used_bonus_3"]:
+             # Безкоштовне замовлення
+            updates.append("used_bonus_3 = TRUE")
+            updates.append("free_orders = free_orders + 1")
+            await channel.send(f"🎁 <@{inviter_id}>, ти отримав **1 безкоштовне замовлення** за 3 реферали!")
+        
+        # За 1 реферала
+        elif confirmed_count >= 1 and not bonus_dict["used_bonus_1"]:
+             # Одноразова знижка
+            updates.append("used_bonus_1 = TRUE")
+            updates.append("permanent_discount = 10")
+            await channel.send(f"💰 <@{inviter_id}>, ти отримав **одноразову знижку 10%** за першого реферала!")
 
         if updates:
             update_query = f"UPDATE user_bonuses SET {', '.join(updates)} WHERE user_id = %s"
