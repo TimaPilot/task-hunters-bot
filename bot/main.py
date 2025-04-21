@@ -441,6 +441,35 @@ async def get_customer_bonus_text(user_id: int) -> str:
         print("❌ Помилка при перевірці бонусу клієнта:", e)
         return ""
 
+# ..............................................................................
+#           [Блок: Нагадування про знижку у замовника при "Зібрано"]
+# ............................................................... ..............
+async def get_discount_notice_text(order_id: int) -> str:
+    try:
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT discount_percent FROM orders WHERE id = %s", (order_id,))
+        row = cursor.fetchone()
+        cursor.close()
+        conn.close()
+
+        if not row:
+            return ""
+
+        discount = row[0]
+
+        if discount >= 100:
+            return "💎 Це безкоштовне замовлення! Клієнт нічого не платить."
+        elif discount > 0:
+            return f"💸 Увага! Клієнт має знижку {discount}%. Врахуй це при передачі ресурсу."
+        else:
+            return ""
+
+    except Exception as e:
+        print("❌ Помилка при перевірці знижки на замовлення:", e)
+        return ""
+
 # ===============================================================
 #           [Class: Вигляд кнопки особистий кабінет]
 # ===============================================================
@@ -664,7 +693,13 @@ async def on_interaction(interaction: discord.Interaction):
 
             await mark_order_collected(order_id)
 
+            # 💸 Перевірка наявності знижки
+            discount_notice = await get_discount_notice_text(order_id)
+            if discount_notice:
+                await interaction.channel.send(discount_notice)
+
             notify_channel = discord.utils.get(
+
                 interaction.guild.text_channels,
                 name="📝-зробити-замовлення"
             )
