@@ -459,6 +459,9 @@ async def get_discount_notice_text(order_id: int) -> str:
 
         discount = row[0]
 
+        if discount is None:
+            return ""
+
         if discount >= 100:
             return "💎 Це безкоштовне замовлення! Клієнт нічого не платить."
         elif discount > 0:
