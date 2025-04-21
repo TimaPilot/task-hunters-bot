@@ -643,8 +643,12 @@ async def on_interaction(interaction: discord.Interaction):
                     WHERE customer_id = %s AND status = 'Виконано'
                 """, (str(customer_id),))
                 completed_orders = cursor.fetchone()[0]
+                print(f"🔍 Перевірка для customer_id: {customer_id}")
+                print(f"🔍 Виконаних замовлень: {completed_orders}")
+
 
                 if completed_orders == 1:
+                    print(f"✅ Підтверджуємо реферал для: {customer_id}")
                     # Оновлюємо confirmed у таблиці referrals
                     cursor.execute("""
                         UPDATE referrals
@@ -732,5 +736,3 @@ async def on_interaction(interaction: discord.Interaction):
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 bot.run(TOKEN)
-
-#test
