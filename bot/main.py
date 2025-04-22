@@ -409,45 +409,8 @@ async def get_user_discount_and_update(user_id: int) -> int:
         print("❌ Помилка при визначенні знижки:", e)
         return 0
 
-
-# ...............................................................
-#           [Блок: Повідомлення про знижку у замовника]
-# ............................................................... 
-async def get_customer_bonus_text(user_id: int) -> str:
-    try:
-        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            SELECT free_orders, permanent_discount, used_discount_10
-            FROM user_bonuses
-            WHERE user_id = %s
-        """, (user_id,))
-        row = cursor.fetchone()
-
-        cursor.close()
-        conn.close()
-
-        if not row:
-            return ""
-
-        free_orders, permanent_discount, used_discount_10 = row
-
-        if free_orders > 0:
-            return f"💎 Клієнт має бонус: {free_orders} безкоштовне замовлення"
-        elif permanent_discount > 0 and not used_discount_10:
-            return f"💸 Клієнт має бонус: одноразова знижка {permanent_discount}%"
-        elif permanent_discount > 0:
-            return f"🔁 Клієнт має постійну знижку {permanent_discount}%"
-        else:
-            return ""
-
-    except Exception as e:
-        print("❌ Помилка при перевірці бонусу клієнта:", e)
-        return ""
-
 # ..............................................................................
-#           [Блок: Нагадування про знижку у замовника при "Зібрано"]
+#           [Блок: Нагадування про знижку у замовника]
 # ............................................................... ..............
 async def get_discount_notice_text(order_id: int) -> str:
     try:
@@ -523,13 +486,45 @@ class CabinetButtonView(View):
         total_orders, completed_count = get_user_order_stats(user_id)
         total_spent = get_total_spent(user_id)
 
+        # Отримуємо бонуси користувача
+        bonus_row = None
+        try:
+            conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT permanent_discount, used_discount_10, free_orders
+                FROM user_bonuses
+                WHERE user_id = %s
+            """, (user_id,))
+            bonus_row = cursor.fetchone()
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            print("❌ Помилка при отриманні бонусів:", e)
+
+        # Значення за замовчуванням
+        discount_text = "0%"
+        free_orders_text = "0"
+
+        if bonus_row:
+            permanent_discount, used_discount_10, free_orders = bonus_row
+            if permanent_discount > 0:
+                if used_discount_10:
+                    discount_text = f"Постійна {permanent_discount}%"
+                else:
+                    discount_text = f"Одноразова {permanent_discount}%"
+            if free_orders > 0:
+                free_orders_text = str(free_orders)
+
+
         embed = discord.Embed(title="🧾 Особистий кабінет", color=0x00ffcc)
         embed.add_field(name="Ім’я", value=f"<@{user_id}>", inline=False)
         embed.add_field(name="📦 Замовлень (всього)", value=str(total_orders), inline=True)
         embed.add_field(name="✅ Виконано", value=str(completed_count), inline=True)
         embed.add_field(name="💰 Витрачено", value=f"${total_spent}", inline=True)
-        embed.add_field(name="🎟️ Знижка", value="0%", inline=True)
-        embed.add_field(name="🎁 Безкоштовні замовлення", value="0", inline=True)
+        embed.add_field(name="🎟️ Знижка", value=discount_text, inline=True)
+        embed.add_field(name="🎁 Безкоштовні замовлення", value=free_orders_text, inline=True)
+
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
