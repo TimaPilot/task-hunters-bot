@@ -121,3 +121,18 @@ async def delete_orders_by_status(status: str):
     conn = await get_connection()
     await conn.execute("DELETE FROM orders WHERE status = $1;", status)
     await conn.close()
+
+async def cancel_order(order_id: int, cancelled_by: str):
+    try:
+        conn = await get_connection()
+        await conn.execute("""
+            UPDATE orders
+            SET status = 'Скасовано',
+                cancelled_by = $1
+            WHERE id = $2
+        """, cancelled_by, order_id)
+        await conn.close()
+        return True
+    except Exception as e:
+        print("❌ Помилка при оновленні статусу замовлення:", e)
+        return False

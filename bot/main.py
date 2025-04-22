@@ -12,6 +12,7 @@ import psycopg2
 import urllib.parse as urlparse
 from db_logger import (
     save_order_to_db,
+    get_connection,
     update_order_status_by_id,
     get_order_by_id,
     get_orders_by_user,
@@ -639,12 +640,68 @@ class ResourceButtonsView(View):
         self.add_item(Button(label="🍄 Гриби", style=discord.ButtonStyle.secondary, custom_id="mushrooms"))
         self.add_item(Button(label="🧴 Миючі засоби", style=discord.ButtonStyle.secondary, custom_id="cleaner"))
 
+class CancelOrderButton(discord.ui.Button):
+    def __init__(self, order_id):
+        super().__init__(label="❌ Скасувати", style=discord.ButtonStyle.danger)
+        self.order_id = order_id
+
+    async def callback(self, interaction: discord.Interaction):
+        user_id = interaction.user.id
+        order = await get_order_by_id(self.order_id)
+
+        if order["customer_id"] != user_id:
+            await interaction.response.send_message("❌ Ви не можете скасувати це замовлення.", ephemeral=True)
+            return
+
+        try:
+            # Оновлення статусу та поля хто скасував
+            conn = await get_connection()
+            await conn.execute("""
+                UPDATE orders
+                SET status = 'Скасовано', cancelled_by = 'customer'
+                WHERE id = $1
+            """, self.order_id)
+            await conn.close()
+
+            # Повідомлення в обидва канали
+            customer_channel = discord.utils.get(interaction.guild.text_channels, name="📑-зробити-замовлення")
+            hunter_channel = discord.utils.get(interaction.guild.text_channels, name="✅-виконання-замовлень")
+
+            resource = order["details"]
+            customer_name = interaction.user.mention
+
+            if customer_channel:
+                await customer_channel.send(f"❌ Ви скасували своє замовлення на {resource}")
+
+            if hunter_channel:
+                await hunter_channel.send(f"⚠️ Замовник {customer_name} скасував замовлення на {resource}")
+
+            await interaction.response.edit_message(content="❌ Замовлення скасовано.", view=None)
+
+        except Exception as e:
+            await interaction.response.send_message("⚠️ Помилка при скасуванні замовлення.", ephemeral=True)
+            print("❌", e)
+
+
+
 class OrderProgressView(View):
-    def __init__(self, customer: discord.User, resource: str, order_id: int, stage: str = "new"):
+    def __init__(
+        self,
+        customer: discord.User,
+        resource: str,
+        order_id: int,
+        stage: str,
+        user: discord.User,         # це той, хто ініціював (зазвичай такий самий як customer)
+        customer_id: int
+    ):
         super().__init__(timeout=None)
         self.customer = customer
         self.resource = resource
         self.order_id = order_id
+        self.stage = stage
+        self.user = user
+        self.customer_id = customer_id
+
 
         if stage == "new":
             self.add_item(Button(label="✅ Прийняти замовлення", style=discord.ButtonStyle.success, custom_id=f"accept_order_{order_id}"))
@@ -655,9 +712,8 @@ class OrderProgressView(View):
         elif stage == "ready":
             self.add_item(Button(label="✅ Завершено", style=discord.ButtonStyle.secondary, custom_id=f"finish_{order_id}"))
 
-        if stage not in ["finished", "cancelled"]:
-            self.add_item(Button(label="❌ Скасувати", style=discord.ButtonStyle.danger, custom_id=f"cancel_{order_id}"))
-
+        if stage == "new" and user.id == customer_id:
+            self.add_item(CancelOrderButton(order_id))
 
 
 # ==============================================
@@ -821,58 +877,6 @@ async def on_interaction(interaction: discord.Interaction):
                     "💬 Будемо раді бачити Ваш відгук в каналі <#1356362829099303160>!"
                 )
 
-        elif cid.startswith("cancel_"):
-            order_id = int(cid.split("_")[1])
-
-            try:
-                conn = psycopg2.connect(os.getenv("DATABASE_URL"))
-                cursor = conn.cursor()
-
-                cursor.execute("""
-                    SELECT customer_id, hunter, status FROM orders WHERE id = %s
-                """, (order_id,))
-                row = cursor.fetchone()
-
-                if not row:
-                    await interaction.response.send_message("⚠️ Замовлення не знайдено.", ephemeral=True)
-                    return
-
-                customer_id, hunter_id, status = row
-                user_id = interaction.user.id
-                role = None
-
-                if user_id == customer_id:
-                    role = "customer"
-                elif hunter_id and user_id == int(hunter_id):
-                    role = "hunter"
-
-                if not role:
-                    await interaction.response.send_message("❌ Ви не маєте прав скасувати це замовлення.", ephemeral=True)
-                    return
-
-                if status in ["Виконано", "Скасовано"]:
-                    await interaction.response.send_message("⛔ Це замовлення вже завершено або скасовано.", ephemeral=True)
-                    return
-
-                # Оновлюємо статус на "Скасовано" і зберігаємо, хто скасував
-                cursor.execute("""
-                    UPDATE orders
-                    SET status = 'Скасовано', cancelled_by = %s
-                    WHERE id = %s
-                """, (role, order_id))
-
-                conn.commit()
-                cursor.close()
-                conn.close()
-
-                # Повідомлення
-                await interaction.message.edit(content=f"❌ Замовлення #{order_id} було скасовано **({role})**.", view=None)
-                await interaction.response.send_message("✅ Замовлення успішно скасовано.", ephemeral=True)
-
-            except Exception as e:
-                print("❌ Помилка при скасуванні замовлення:", e)
-                await interaction.response.send_message("⚠️ Сталася помилка при скасуванні замовлення.", ephemeral=True)
-
 # ...............................................................
 #           [Блок: підтвердження реферала]
 # ...............................................................                
@@ -880,6 +884,18 @@ async def on_interaction(interaction: discord.Interaction):
                 conn = psycopg2.connect(os.getenv("DATABASE_URL"))
                 cursor = conn.cursor()
 
+                # Перевірка чи вже підтверджений
+                cursor.execute("""
+                    SELECT confirmed FROM referrals WHERE invited_id = %s
+                """, (str(customer_id),))
+                confirmed_row = cursor.fetchone()
+
+                if confirmed_row and confirmed_row[0]:  # Вже confirmed = TRUE
+                    print("🔁 Реферал вже підтверджений — пропускаємо.")
+                    cursor.close()
+                    conn.close()
+                    return
+                
                 cursor.execute("""
                     SELECT COUNT(*) FROM orders
                     WHERE customer_id = %s AND status = 'Виконано'
