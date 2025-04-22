@@ -701,6 +701,14 @@ class OrderProgressView(View):
         self.stage = stage
         self.user = user
         self.customer_id = customer_id
+        view = OrderProgressView(
+            customer=user,
+            resource=selected,
+            order_id=order_id,
+            stage="new",
+            user=user,
+            customer_id=user.id
+)
 
 
         if stage == "new":
