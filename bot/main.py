@@ -478,6 +478,37 @@ async def get_discount_notice_text(order_id: int) -> str:
         print("❌ Помилка при перевірці знижки на замовлення:", e)
         return ""
 
+# ==================================================
+# [Функція]: Отримати статус бонусів користувача
+# ==================================================
+async def get_user_bonus_status(user_id: int) -> dict:
+    try:
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT used_discount_10, permanent_discount, free_orders
+            FROM user_bonuses
+            WHERE user_id = %s
+        """, (user_id,))
+        row = cursor.fetchone()
+
+        cursor.close()
+        conn.close()
+
+        if not row:
+            return {}
+
+        return {
+            "used_discount_10": row[0],
+            "permanent_discount": row[1],
+            "free_orders": row[2]
+        }
+
+    except Exception as e:
+        print("❌ Помилка при зчитуванні статусу бонусів:", e)
+        return {}
+
 # ===============================================================
 #           [Class: Вигляд кнопки особистий кабінет]
 # ===============================================================
@@ -640,26 +671,34 @@ async def on_interaction(interaction: discord.Interaction):
                 "hunter": None,
                 "status": "Очікує",
                 "discount_percent": discount  
-}
-
+            }
 
             order_id = await save_order_to_db(order_data)
             await interaction.message.delete()
 
-            # ⬇️ Додаємо визначення бонусу
-            bonus_text = await get_discount_notice_text(order_id)
+            # ⬇️ Вставляємо розумну перевірку типу знижки
+            discount_text = await get_discount_notice_text(order_id)
+            bonus_status = await get_user_bonus_status(user.id)
+
+            if discount_text and bonus_status:
+                if bonus_status["permanent_discount"] > 0:
+                    if bonus_status["used_discount_10"]:
+                        discount_text = discount_text.replace("💸", "🔁").replace("знижку", "постійну знижку")
+                    else:
+                        discount_text = discount_text.replace("💸", "🟢").replace("знижку", "одноразову знижку")
 
             channel = discord.utils.get(interaction.guild.text_channels, name="✅-виконання-замовлень")
             if channel:
                 content = f"📦 Надійшло нове замовлення на **{selected}** від {user.mention}"
                 
-                if bonus_text:
-                    content += f"\n{bonus_text}"
+                if discount_text:
+                    content += f"\n{discount_text}"
 
                 await channel.send(
                     content,
                     view=OrderProgressView(user, cid, order_id, stage="new")
                 )
+
 
             await interaction.response.send_message(
                 f"🧾 Ваш запит на **{selected}** успішно зареєстровано. Очікуйте підтвердження.",
