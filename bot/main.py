@@ -647,7 +647,7 @@ async def on_interaction(interaction: discord.Interaction):
             await interaction.message.delete()
 
             # ⬇️ Додаємо визначення бонусу
-            bonus_text = await get_customer_bonus_text(user.id)
+            bonus_text = await get_discount_notice_text(order_id)
 
             channel = discord.utils.get(interaction.guild.text_channels, name="✅-виконання-замовлень")
             if channel:
