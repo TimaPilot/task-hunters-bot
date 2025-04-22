@@ -341,7 +341,7 @@ async def check_and_grant_referral_bonus(guild: discord.Guild, inviter_id: int):
         
         # За 1 реферала
         elif confirmed_count >= 1 and not bonus_dict["used_bonus_1"]:
-             # Одноразова знижка
+            # Одноразова знижка
             updates.append("used_bonus_1 = TRUE")
             updates.append("permanent_discount = 10")
             await channel.send(f"💰 <@{inviter_id}>, ти отримав **одноразову знижку 10%** за першого реферала!")
@@ -390,7 +390,7 @@ async def get_user_discount_and_update(user_id: int) -> int:
                 discount = 10
                 cursor.execute("""
                     UPDATE user_bonuses
-                    SET used_discount_10 = TRUE
+                    SET used_discount_10 = TRUE, permanent_discount = 0
                     WHERE user_id = %s
                 """, (user_id,))
                 print(f"💸 Використано одноразову знижку 10% для {user_id}")
@@ -408,6 +408,7 @@ async def get_user_discount_and_update(user_id: int) -> int:
     except Exception as e:
         print("❌ Помилка при визначенні знижки:", e)
         return 0
+
 
 # ...............................................................
 #           [Блок: Повідомлення про знижку у замовника]
