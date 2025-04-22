@@ -67,7 +67,6 @@ async def on_ready():
         print("❌ Помилка при синхронізації слеш-команд:", e)
 
     bot.add_view(ResourceButtonsView())
-#    bot.add_view(CabinetButtonView())
 
 # ==============================================
 #           [Блок: Slash команда]
@@ -138,6 +137,27 @@ async def on_member_join(member):
         print(f"Роль '{role.name}' видано користувачу {member.name}")
     else:
         print("Роль 'Замовник 💼' не знайдена!")
+
+
+# =======================================================================
+#           [Блок: Очищення вітання з @TH Dev Tester]
+# =======================================================================
+@bot.command(name="clear_tester")
+@commands.has_permissions(administrator=True)
+async def clear_tester_messages(ctx):
+    target_id = 1356372930476507367  # ID користувача @TH Dev Tester
+    deleted = 0
+
+    async for msg in ctx.channel.history(limit=300):
+        if msg.author == bot.user and str(target_id) in msg.content:
+            try:
+                await msg.delete()
+                deleted += 1
+            except:
+                pass
+
+    await ctx.send(f"🧹 Видалено {deleted} повідомлень, повʼязаних із @TH Dev Tester.", delete_after=5)
+
 
 # =======================================================================
 #           [Блок: Очищення чату (крім закріплених повід.)]
