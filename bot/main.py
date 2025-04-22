@@ -655,6 +655,11 @@ class OrderProgressView(View):
         elif stage == "ready":
             self.add_item(Button(label="✅ Завершено", style=discord.ButtonStyle.secondary, custom_id=f"finish_{order_id}"))
 
+        if stage not in ["finished", "cancelled"]:
+            self.add_item(Button(label="❌ Скасувати", style=discord.ButtonStyle.danger, custom_id=f"cancel_{order_id}"))
+
+
+
 # ==============================================
 #           [Блок: on_interaction]
 # ==============================================
@@ -815,6 +820,58 @@ async def on_interaction(interaction: discord.Interaction):
                 await notify_channel.send(
                     "💬 Будемо раді бачити Ваш відгук в каналі <#1356362829099303160>!"
                 )
+
+        elif cid.startswith("cancel_"):
+            order_id = int(cid.split("_")[1])
+
+            try:
+                conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+                cursor = conn.cursor()
+
+                cursor.execute("""
+                    SELECT customer_id, hunter, status FROM orders WHERE id = %s
+                """, (order_id,))
+                row = cursor.fetchone()
+
+                if not row:
+                    await interaction.response.send_message("⚠️ Замовлення не знайдено.", ephemeral=True)
+                    return
+
+                customer_id, hunter_id, status = row
+                user_id = interaction.user.id
+                role = None
+
+                if user_id == customer_id:
+                    role = "customer"
+                elif hunter_id and user_id == int(hunter_id):
+                    role = "hunter"
+
+                if not role:
+                    await interaction.response.send_message("❌ Ви не маєте прав скасувати це замовлення.", ephemeral=True)
+                    return
+
+                if status in ["Виконано", "Скасовано"]:
+                    await interaction.response.send_message("⛔ Це замовлення вже завершено або скасовано.", ephemeral=True)
+                    return
+
+                # Оновлюємо статус на "Скасовано" і зберігаємо, хто скасував
+                cursor.execute("""
+                    UPDATE orders
+                    SET status = 'Скасовано', cancelled_by = %s
+                    WHERE id = %s
+                """, (role, order_id))
+
+                conn.commit()
+                cursor.close()
+                conn.close()
+
+                # Повідомлення
+                await interaction.message.edit(content=f"❌ Замовлення #{order_id} було скасовано **({role})**.", view=None)
+                await interaction.response.send_message("✅ Замовлення успішно скасовано.", ephemeral=True)
+
+            except Exception as e:
+                print("❌ Помилка при скасуванні замовлення:", e)
+                await interaction.response.send_message("⚠️ Сталася помилка при скасуванні замовлення.", ephemeral=True)
 
 # ...............................................................
 #           [Блок: підтвердження реферала]
