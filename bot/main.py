@@ -12,7 +12,6 @@ import psycopg2
 import urllib.parse as urlparse
 from db_logger import (
     save_order_to_db,
-    get_connection,
     update_order_status_by_id,
     get_order_by_id,
     get_orders_by_user,
@@ -640,76 +639,12 @@ class ResourceButtonsView(View):
         self.add_item(Button(label="🍄 Гриби", style=discord.ButtonStyle.secondary, custom_id="mushrooms"))
         self.add_item(Button(label="🧴 Миючі засоби", style=discord.ButtonStyle.secondary, custom_id="cleaner"))
 
-class CancelOrderButton(discord.ui.Button):
-    def __init__(self, order_id):
-        super().__init__(label="❌ Скасувати", style=discord.ButtonStyle.danger)
-        self.order_id = order_id
-
-    async def callback(self, interaction: discord.Interaction):
-        user_id = interaction.user.id
-        order = await get_order_by_id(self.order_id)
-
-        if order["customer_id"] != user_id:
-            await interaction.response.send_message("❌ Ви не можете скасувати це замовлення.", ephemeral=True)
-            return
-
-        try:
-            # Оновлення статусу та поля хто скасував
-            conn = await get_connection()
-            await conn.execute("""
-                UPDATE orders
-                SET status = 'Скасовано', cancelled_by = 'customer'
-                WHERE id = $1
-            """, self.order_id)
-            await conn.close()
-
-            # Повідомлення в обидва канали
-            customer_channel = discord.utils.get(interaction.guild.text_channels, name="📑-зробити-замовлення")
-            hunter_channel = discord.utils.get(interaction.guild.text_channels, name="✅-виконання-замовлень")
-
-            resource = order["details"]
-            customer_name = interaction.user.mention
-
-            if customer_channel:
-                await customer_channel.send(f"❌ Ви скасували своє замовлення на {resource}")
-
-            if hunter_channel:
-                await hunter_channel.send(f"⚠️ Замовник {customer_name} скасував замовлення на {resource}")
-
-            await interaction.response.edit_message(content="❌ Замовлення скасовано.", view=None)
-
-        except Exception as e:
-            await interaction.response.send_message("⚠️ Помилка при скасуванні замовлення.", ephemeral=True)
-            print("❌", e)
-
-
-
 class OrderProgressView(View):
-    def __init__(
-        self,
-        customer: discord.User,
-        resource: str,
-        order_id: int,
-        stage: str,
-        user: discord.User,         # це той, хто ініціював (зазвичай такий самий як customer)
-        customer_id: int
-    ):
+    def __init__(self, customer: discord.User, resource: str, order_id: int, stage: str = "new"):
         super().__init__(timeout=None)
         self.customer = customer
         self.resource = resource
         self.order_id = order_id
-        self.stage = stage
-        self.user = user
-        self.customer_id = customer_id
-        view = OrderProgressView(
-            customer=user,
-            resource=selected,
-            order_id=order_id,
-            stage="new",
-            user=user,
-            customer_id=user.id
-)
-
 
         if stage == "new":
             self.add_item(Button(label="✅ Прийняти замовлення", style=discord.ButtonStyle.success, custom_id=f"accept_order_{order_id}"))
@@ -719,10 +654,6 @@ class OrderProgressView(View):
 
         elif stage == "ready":
             self.add_item(Button(label="✅ Завершено", style=discord.ButtonStyle.secondary, custom_id=f"finish_{order_id}"))
-
-        if stage == "new" and user.id == customer_id:
-            self.add_item(CancelOrderButton(order_id))
-
 
 # ==============================================
 #           [Блок: on_interaction]
@@ -1027,5 +958,3 @@ async def on_interaction(interaction: discord.Interaction):
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 bot.run(TOKEN)
-
-#test
