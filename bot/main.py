@@ -648,6 +648,7 @@ class OrderProgressView(View):
 
         if stage == "new":
             self.add_item(Button(label="✅ Прийняти замовлення", style=discord.ButtonStyle.success, custom_id=f"accept_order_{order_id}"))
+            self.add_item(Button(label="❌ Скасувати", style=discord.ButtonStyle.danger, custom_id=f"cancel_{order_id}"))
 
         elif stage == "accepted":
             self.add_item(Button(label="📦 Зібрано", style=discord.ButtonStyle.primary, custom_id=f"ready_{order_id}"))
@@ -747,7 +748,35 @@ async def on_interaction(interaction: discord.Interaction):
                 await notify_channel.send(
                     f"{customer.mention}, Ваше замовлення на **{resource}** прийняв {hunter.mention}! 🕒 Орієнтовний час виконання — {eta}!"
                 )
+        elif cid.startswith("cancel_"):
+            order_id = int(cid.replace("cancel_", ""))
+            order = await get_order_by_id(order_id)
 
+            if order["status"] != "Очікує":
+                await interaction.response.send_message("⚠️ Це замовлення вже в роботі й не може бути скасоване.", ephemeral=True)
+                return
+
+            # оновлюємо статус
+            await update_order_status_by_id(order_id, "Скасовано", hunter_name=None)
+
+            customer = interaction.user
+            resource = order["details"]
+
+            # Повідомлення замовнику
+            channel_customer = discord.utils.get(interaction.guild.text_channels, name="📝-зробити-замовлення")
+            if channel_customer:
+                await channel_customer.send(f"{customer.mention}, ❌ Ви скасували своє замовлення на **{resource}**.")
+
+            # Повідомлення мисливцям
+            channel_hunters = discord.utils.get(interaction.guild.text_channels, name="✅-виконання-замовлень")
+            if channel_hunters:
+                await channel_hunters.send(f"⚠️ Замовник {customer.mention} скасував замовлення на **{resource}**.")
+
+            # Оновлення повідомлення з кнопками
+            await interaction.response.edit_message(
+                content=f"❌ Замовлення на **{resource}** було скасовано користувачем.",
+                view=None
+            )
 
         elif cid.startswith("ready_"):
             order_id = int(cid.replace("ready_", ""))
