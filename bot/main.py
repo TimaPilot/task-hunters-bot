@@ -548,6 +548,13 @@ class CabinetButtonView(View):
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
+# ===============================================================
+#           [Class: Вигляд кнопки скасувати замовлення]
+# ===============================================================
+class CancelOrderButtonView(View):
+    def __init__(self, order_id: int):
+        super().__init__(timeout=None)
+        self.add_item(Button(label="❌ Скасувати замовлення", style=discord.ButtonStyle.danger, custom_id=f"cancel_user_{order_id}"))
 
 # ...............................................................
 #           [Блок: Вигляд кнопки детальна статистика]
@@ -648,7 +655,6 @@ class OrderProgressView(View):
 
         if stage == "new":
             self.add_item(Button(label="✅ Прийняти замовлення", style=discord.ButtonStyle.success, custom_id=f"accept_order_{order_id}"))
-            self.add_item(Button(label="❌ Скасувати", style=discord.ButtonStyle.danger, custom_id=f"cancel_{order_id}"))
 
         elif stage == "accepted":
             self.add_item(Button(label="📦 Зібрано", style=discord.ButtonStyle.primary, custom_id=f"ready_{order_id}"))
@@ -719,7 +725,35 @@ async def on_interaction(interaction: discord.Interaction):
             await interaction.response.send_message(
                 f"🧾 Ваш запит на **{selected}** успішно зареєстровано. Очікуйте підтвердження.",
                 ephemeral=True
-)
+            user_channel = interaction.guild.get_channel(1356283008478478546)  # зробити замовлення
+            if user_channel:
+                await user_channel.send(
+                    f"{user.mention}, ваш запит на **{selected}** успішно зареєстровано. Якщо передумали — можете скасувати:",
+                    view=CancelOrderButtonView(order_id)
+                )
+            )
+
+        elif cid.startswith("cancel_user_"):
+            order_id = int(cid.replace("cancel_user_", ""))
+            order = await get_order_by_id(order_id)
+
+            if order["status"] != "Очікує":
+                await interaction.response.send_message("⚠️ Це замовлення вже прийнято і не може бути скасоване.", ephemeral=True)
+                return
+
+            await update_order_status_by_id(order_id, "Скасовано", hunter_name=None)
+
+            resource = order["details"]
+            customer = interaction.user
+
+            await interaction.response.edit_message(
+                content=f"❌ Ви скасували своє замовлення на **{resource}**.",
+                view=None
+            )
+
+            hunters_channel = interaction.guild.get_channel(1356291670110507069)  # виконання замовлень
+            if hunters_channel:
+                await hunters_channel.send(f"⚠️ Замовник {customer.mention} скасував замовлення на **{resource}**.")
 
 
         elif cid.startswith("accept_order_"):
