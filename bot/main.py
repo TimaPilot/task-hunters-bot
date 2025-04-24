@@ -548,14 +548,6 @@ class CabinetButtonView(View):
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-# ===============================================================
-#           [Class: Вигляд кнопки скасувати замовлення]
-# ===============================================================
-class CancelOrderButtonView(View):
-    def __init__(self, order_id: int):
-        super().__init__(timeout=None)
-        self.add_item(Button(label="❌ Скасувати замовлення", style=discord.ButtonStyle.danger, custom_id=f"cancel_user_{order_id}"))
-
 # ...............................................................
 #           [Блок: Вигляд кнопки детальна статистика]
 # ...............................................................
@@ -630,6 +622,14 @@ class CancelOrderButtonView(View):
 
         cursor.close()
         conn.close()
+
+# ===============================================================
+#           [Class: Вигляд кнопки скасувати замовлення]
+# ===============================================================
+class CancelOrderButtonView(View):
+    def __init__(self, order_id: int):
+        super().__init__(timeout=None)
+        self.add_item(Button(label="❌ Скасувати замовлення", style=discord.ButtonStyle.danger, custom_id=f"cancel_user_{order_id}"))
 
 class ReferralView(View):
     def __init__(self):
