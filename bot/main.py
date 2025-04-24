@@ -626,10 +626,10 @@ class CabinetButtonView(View):
 # ===============================================================
 #           [Class: Вигляд кнопки скасувати замовлення]
 # ===============================================================
-class CancelOrderButtonView(View):
-    def __init__(self, order_id: int):
-        super().__init__(timeout=None)
-        self.add_item(Button(label="❌ Скасувати замовлення", style=discord.ButtonStyle.danger, custom_id=f"cancel_user_{order_id}"))
+#class CancelOrderButtonView(View):
+#    def __init__(self, order_id: int):
+#        super().__init__(timeout=None)
+#        self.add_item(Button(label="❌ Скасувати замовлення", style=discord.ButtonStyle.danger, custom_id=f"cancel_user_{order_id}"))
 
 class ReferralView(View):
     def __init__(self):
@@ -726,12 +726,12 @@ async def on_interaction(interaction: discord.Interaction):
                 f"🧾 Ваш запит на **{selected}** успішно зареєстровано. Очікуйте підтвердження.",
                 ephemeral=True
             )
-            user_channel = interaction.guild.get_channel(1356283008478478546)  # зробити замовлення
-            if user_channel:
-                await user_channel.send(
-                    f"{user.mention}, ваш запит на **{selected}** успішно зареєстровано. Якщо передумали — можете скасувати:",
-                    view=CancelOrderButtonView(order_id)
-                )
+           # user_channel = interaction.guild.get_channel(1356283008478478546)  # зробити замовлення
+           # if user_channel:
+           #     await user_channel.send(
+           #         f"{user.mention}, ваш запит на **{selected}** успішно зареєстровано. Якщо передумали — можете скасувати:",
+           #         view=CancelOrderButtonView(order_id)
+           #     )
             
 
         elif cid.startswith("cancel_user_"):
