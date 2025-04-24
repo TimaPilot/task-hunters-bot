@@ -626,10 +626,10 @@ class CabinetButtonView(View):
 # ===============================================================
 #           [Class: Вигляд кнопки скасувати замовлення]
 # ===============================================================
-class CancelOrderButtonView(View):
-    def __init__(self, order_id: int):
-        super().__init__(timeout=None)
-        self.add_item(Button(label="❌ Скасувати замовлення", style=discord.ButtonStyle.danger, custom_id=f"cancel_user_{order_id}"))
+#class CancelOrderButtonView(View):
+#    def __init__(self, order_id: int):
+#        super().__init__(timeout=None)
+#        self.add_item(Button(label="❌ Скасувати замовлення", style=discord.ButtonStyle.danger, custom_id=f"cancel_user_{order_id}"))
 
 class ReferralView(View):
     def __init__(self):
