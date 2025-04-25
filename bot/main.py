@@ -721,11 +721,6 @@ async def on_interaction(interaction: discord.Interaction):
                     view=OrderProgressView(user, cid, order_id, stage="new")
                 )
 
-
-            await interaction.response.send_message(
-                f"🧾 Ваш запит на **{selected}** успішно зареєстровано. Очікуйте підтвердження.",
-                ephemeral=True
-            )
             user_channel = interaction.guild.get_channel(1356283008478478546)  # зробити замовлення
             if user_channel:
                 await user_channel.send(
@@ -737,6 +732,10 @@ async def on_interaction(interaction: discord.Interaction):
         elif cid.startswith("cancel_user_"):
             order_id = int(cid.replace("cancel_user_", ""))
             order = await get_order_by_id(order_id)
+
+            if order["customer_id"] != user.id:
+                await interaction.response.send_message("⛔ Ви не можете скасувати чуже замовлення!", ephemeral=True)
+                return
 
             if order["status"] != "Очікує":
                 await interaction.response.send_message("⚠️ Це замовлення вже прийнято і не може бути скасоване.", ephemeral=True)
@@ -752,9 +751,10 @@ async def on_interaction(interaction: discord.Interaction):
                 view=None
             )
 
-            hunters_channel = interaction.guild.get_channel(1356291670110507069)  # виконання замовлень
+            hunters_channel = interaction.guild.get_channel(1356291670110507069)
             if hunters_channel:
                 await hunters_channel.send(f"⚠️ Замовник {customer.mention} скасував замовлення на **{resource}**.")
+
 
 
         elif cid.startswith("accept_order_"):
