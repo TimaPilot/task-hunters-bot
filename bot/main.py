@@ -747,7 +747,7 @@ async def on_interaction(interaction: discord.Interaction):
             customer = interaction.user
 
             await interaction.response.edit_message(
-                content=f"❌ Ви скасували своє замовлення на **{resource}**.",
+                content=f"{user.mention}, ❌ Ви скасували своє замовлення на **{resource}**.",
                 view=None
             )
 
