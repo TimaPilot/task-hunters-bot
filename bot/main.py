@@ -788,11 +788,11 @@ async def on_interaction(interaction: discord.Interaction):
             except Exception as e:
                 print("❌ Не вдалося зберегти hunter_message_id:", e)
 
-            # Отримуємо дані про знижку
+            # Отримуємо дані про бонуси
             conn = psycopg2.connect(os.getenv("DATABASE_URL"))
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT permanent_discount, used_discount_10
+                SELECT permanent_discount, used_discount_10, free_orders
                 FROM user_bonuses
                 WHERE user_id = %s
             """, (user.id,))
@@ -810,6 +810,7 @@ async def on_interaction(interaction: discord.Interaction):
 
                 if free_orders > 0:
                     discount_reminder += f"\n\n🎁 У вас є {free_orders} безкоштовне(і) замовлення! Воно буде використано автоматично при виконанні."
+
 
             user_channel = interaction.guild.get_channel(1356283008478478546)  # зробити замовлення
             if user_channel:
