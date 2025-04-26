@@ -803,9 +803,13 @@ async def on_interaction(interaction: discord.Interaction):
             discount_reminder = ""
 
             if bonus_row:
-                permanent_discount, used_discount_10 = bonus_row
+                permanent_discount, used_discount_10, free_orders = bonus_row
+
                 if permanent_discount > 0 and not used_discount_10:
-                    discount_reminder = f"\n\n💸 У вас є знижка {permanent_discount}%! Вона застосується після виконання цього замовлення."
+                    discount_reminder += f"\n\n💸 У вас є знижка {permanent_discount}%! Вона застосується після виконання цього замовлення."
+
+                if free_orders > 0:
+                    discount_reminder += f"\n\n🎁 У вас є {free_orders} безкоштовне(і) замовлення! Воно буде використано автоматично при виконанні."
 
             user_channel = interaction.guild.get_channel(1356283008478478546)  # зробити замовлення
             if user_channel:
