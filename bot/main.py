@@ -796,6 +796,7 @@ async def on_interaction(interaction: discord.Interaction):
                 FROM user_bonuses
                 WHERE user_id = %s
             """, (user.id,))
+
             bonus_row = cursor.fetchone()
             cursor.close()
             conn.close()
@@ -813,12 +814,17 @@ async def on_interaction(interaction: discord.Interaction):
 
 
             user_channel = interaction.guild.get_channel(1356283008478478546)  # зробити замовлення
-            if user_channel:
-                await user_channel.send(
-            f"{user.mention}, ваш запит на **{selected}** успішно зареєстровано. Якщо передумали — можете скасувати:"
-            f"{discount_reminder}",
-            view=CancelOrderButtonView(order_id)
-        )
+            message_content = (
+                f"{user.mention}, ваш запит на **{selected}** успішно зареєстровано. Якщо передумали — можете скасувати:"
+            )
+
+            if discount_reminder:
+                message_content += f"\n{discount_reminder}"
+
+            await user_channel.send(
+                content=message_content,
+                view=CancelOrderButtonView(order_id)
+            )
 
         elif cid.startswith("cancel_user_"):
             order_id = int(cid.replace("cancel_user_", ""))
