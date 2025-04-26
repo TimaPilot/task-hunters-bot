@@ -501,6 +501,7 @@ class CabinetButtonView(View):
 
     @discord.ui.button(label="📂 Зайти в особистий кабінет", style=discord.ButtonStyle.primary)
     async def open_cabinet(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer(thinking=True, ephemeral=True)
         user_id = interaction.user.id
 
         total_orders, completed_count = get_user_order_stats(user_id)
@@ -546,13 +547,15 @@ class CabinetButtonView(View):
         embed.add_field(name="🎁 Безкоштовні замовлення", value=free_orders_text, inline=True)
 
 
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
 # ...............................................................
 #           [Блок: Вигляд кнопки детальна статистика]
 # ...............................................................
     @discord.ui.button(label="🔗 Реферальна система", style=discord.ButtonStyle.secondary)
     async def referral_system(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer(thinking=True, ephemeral=True)
+
         embed = discord.Embed(
             title="🧩 Реферальна система",
             description=(
@@ -564,8 +567,7 @@ class CabinetButtonView(View):
             color=0x00ffcc
         )
 
-        await interaction.response.send_message(embed=embed, view=ReferralView(), ephemeral=True)
-
+        await interaction.followup.send(embed=embed, view=ReferralView(), ephemeral=True)
 
 
 # ...............................................................
@@ -573,6 +575,7 @@ class CabinetButtonView(View):
 # ...............................................................
     @discord.ui.button(label="📊 Детальна статистика", style=discord.ButtonStyle.secondary)
     async def detailed_stats(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer(thinking=True, ephemeral=True)
         import os
         import psycopg2
         from dotenv import load_dotenv
@@ -618,7 +621,7 @@ class CabinetButtonView(View):
             description += "\n\n🔁 Якщо будеш виконувати більше замовлень — тут з’явиться ще більше інформації!"
 
         embed = discord.Embed(title="📊 Детальна статистика", description=description, color=0x00ffcc)
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
         cursor.close()
         conn.close()
