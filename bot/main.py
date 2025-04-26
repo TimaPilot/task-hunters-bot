@@ -716,10 +716,24 @@ async def on_interaction(interaction: discord.Interaction):
                 if discount_text:
                     content += f"\n{discount_text}"
 
-                await channel.send(
-                    content,
-                    view=OrderProgressView(user, cid, order_id, stage="new")
-                )
+                message = await channel.send(
+                content,
+                view=OrderProgressView(user, cid, order_id, stage="new")
+            )
+
+            # ⬇️ Зберігаємо message.id у колонку hunter_message_id
+            try:
+                conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE orders SET hunter_message_id = %s WHERE id = %s
+                """, (message.id, order_id))
+                conn.commit()
+                cursor.close()
+                conn.close()
+            except Exception as e:
+                print("❌ Не вдалося зберегти hunter_message_id:", e)
+
 
             user_channel = interaction.guild.get_channel(1356283008478478546)  # зробити замовлення
             if user_channel:
@@ -732,6 +746,16 @@ async def on_interaction(interaction: discord.Interaction):
         elif cid.startswith("cancel_user_"):
             order_id = int(cid.replace("cancel_user_", ""))
             order = await get_order_by_id(order_id)
+            
+            # 🧽 Видалення hunter-повідомлення
+            message_id = order.get("hunter_message_id")
+            if message_id:
+                try:
+                    hunters_channel = interaction.guild.get_channel(1356291670110507069)
+                    msg = await hunters_channel.fetch_message(message_id)
+                    await msg.delete()
+                except Exception as e:
+                    print("❌ Не вдалося видалити повідомлення мисливців:", e)
 
             if order["customer_id"] != user.id:
                 await interaction.response.send_message("⛔ Ви не можете скасувати чуже замовлення!", ephemeral=True)
