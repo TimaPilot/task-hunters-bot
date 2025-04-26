@@ -200,6 +200,57 @@ async def clear_orders_by_status(ctx, *, status: str):
     await ctx.send(f"🧹 Видалено всі замовлення зі статусом: **{status}**.")
 
 # ==============================================
+#           [Блок: Розсилка знижок за рефералів]
+# ==============================================
+@bot.command()
+@commands.is_owner()  # лише для тебе
+async def сповістити_знижку(ctx):
+    channel = ctx.guild.get_channel(1356312646045927424)  # 📂-особистий-кабінет
+
+    if not channel:
+        await ctx.send("❌ Канал не знайдено.")
+        return
+
+    conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT user_id FROM user_bonuses
+        WHERE permanent_discount = 10 AND used_discount_10 = false
+    """)
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    if not rows:
+        await ctx.send("ℹ️ Немає користувачів зі знижкою.")
+        return
+
+    for (user_id,) in rows:
+        try:
+            member = await ctx.guild.fetch_member(user_id)
+
+            embed = discord.Embed(
+                title="🎁 У вас є знижка 10%!",
+                description=(
+                    "Дякуємо, що запросили друга! Ви отримали **одноразову знижку 10%** на замовлення.\n"
+                    "Вона автоматично активується після завершення найближчого виконаного замовлення.\n\n"
+                    "Приємного полювання! 🔥"
+                ),
+                color=0x00ff99
+            )
+
+            await channel.send(
+                content=f"{member.mention}",
+                embed=embed
+            )
+
+            await asyncio.sleep(1)
+        except Exception as e:
+            print(f"❌ Не вдалося надіслати повідомлення для {user_id}: {e}")
+
+    await ctx.send("✅ Повідомлення надіслані всім користувачам зі знижкою.")
+
+# ==============================================
 #           [Блок: Особистий кабінет]
 # ==============================================
 @bot.command(name="панель")
@@ -737,14 +788,32 @@ async def on_interaction(interaction: discord.Interaction):
             except Exception as e:
                 print("❌ Не вдалося зберегти hunter_message_id:", e)
 
+            # Отримуємо дані про знижку
+            conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT permanent_discount, used_discount_10
+                FROM user_bonuses
+                WHERE user_id = %s
+            """, (user.id,))
+            bonus_row = cursor.fetchone()
+            cursor.close()
+            conn.close()
+
+            discount_reminder = ""
+
+            if bonus_row:
+                permanent_discount, used_discount_10 = bonus_row
+                if permanent_discount > 0 and not used_discount_10:
+                    discount_reminder = f"\n\n💸 У вас є знижка {permanent_discount}%! Вона застосується після виконання цього замовлення."
 
             user_channel = interaction.guild.get_channel(1356283008478478546)  # зробити замовлення
             if user_channel:
                 await user_channel.send(
-                    f"{user.mention}, ваш запит на **{selected}** успішно зареєстровано. Якщо передумали — можете скасувати:",
-                    view=CancelOrderButtonView(order_id)
-                )
-            
+            f"{user.mention}, ваш запит на **{selected}** успішно зареєстровано. Якщо передумали — можете скасувати:"
+            f"{discount_reminder}",
+            view=CancelOrderButtonView(order_id)
+        )
 
         elif cid.startswith("cancel_user_"):
             order_id = int(cid.replace("cancel_user_", ""))
