@@ -205,7 +205,7 @@ async def clear_orders_by_status(ctx, *, status: str):
 @bot.command()
 @commands.is_owner()  # лише для тебе
 async def сповістити_знижку(ctx):
-    channel = ctx.guild.get_channel(1356312646045927424)  # 📂-особистий-кабінет
+    channel = ctx.guild.get_channel(1361872158435053759)  # 📂-особистий-кабінет
 
     if not channel:
         await ctx.send("❌ Канал не знайдено.")
