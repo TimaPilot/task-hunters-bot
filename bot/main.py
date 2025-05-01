@@ -65,8 +65,26 @@ async def on_ready():
         print(f"🔁 Slash-команди синхронізовано: {len(synced)}")
     except Exception as e:
         print("❌ Помилка при синхронізації слеш-команд:", e)
+    await ensure_invite_code_table()
 
     bot.add_view(ResourceButtonsView())
+
+async def ensure_invite_code_table():
+    try:
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS invite_codes (
+                code TEXT PRIMARY KEY,
+                inviter_id BIGINT
+            );
+        """)
+        conn.commit()
+        cursor.close()
+        conn.close()
+        print("📁 Таблиця invite_codes перевірена або створена.")
+    except Exception as e:
+        print("❌ Помилка при створенні invite_codes:", e)
 
 # ==============================================
 #           [Блок: Slash команда]
@@ -87,36 +105,47 @@ async def on_member_join(member):
     new_invites = await guild.invites()
     old_invites = invite_cache.get(guild.id, [])
 
-    used_invite = None
+    used_invite_code = None
     for invite in new_invites:
         for old in old_invites:
             if invite.code == old.code and invite.uses > old.uses:
-                used_invite = invite
+                used_invite_code = invite.code
                 break
-        if used_invite:
+        if used_invite_code:
             break
 
     invite_cache[guild.id] = new_invites  # оновлюємо кеш
 
-    if used_invite:
-        inviter_id = used_invite.inviter.id
-        invited_id = member.id
-
-        # зберігаємо у базу
+    if used_invite_code:
         try:
             conn = psycopg2.connect(os.getenv("DATABASE_URL"))
             cursor = conn.cursor()
+
+            # Знаходимо того, хто створив саме цей код
             cursor.execute("""
-                INSERT INTO referrals (inviter_id, invited_id)
-                VALUES (%s, %s)
-                ON CONFLICT (invited_id) DO NOTHING
-            """, (inviter_id, invited_id))
-            conn.commit()
+                SELECT inviter_id FROM invite_codes WHERE code = %s
+            """, (used_invite_code,))
+            row = cursor.fetchone()
+
+            if row:
+                inviter_id = row[0]
+                invited_id = member.id
+
+                cursor.execute("""
+                    INSERT INTO referrals (inviter_id, invited_id)
+                    VALUES (%s, %s)
+                    ON CONFLICT (invited_id) DO NOTHING
+                """, (inviter_id, invited_id))
+                conn.commit()
+                print(f"💾 Додано реферал: {inviter_id} → {invited_id}")
+            else:
+                print(f"⚠️ Код {used_invite_code} не знайдений у базі!")
+
             cursor.close()
             conn.close()
-            print(f"💾 Додано реферал: {inviter_id} → {invited_id}")
         except Exception as e:
             print("❌ Помилка при збереженні реферала:", e)
+
 
     # 4️⃣ Привітання 
     channel = bot.get_channel(1356270026688041171)  # ID твого каналу
@@ -1054,22 +1083,30 @@ async def on_interaction(interaction: discord.Interaction):
         elif cid == "get_ref_link":
             guild = interaction.guild
             user = interaction.user
-            invites = await guild.invites()
 
-            # Шукаємо інвайт користувача
-            existing_invite = next((i for i in invites if i.inviter.id == user.id), None)
+            channel = guild.system_channel or guild.text_channels[0]
+            new_invite = await channel.create_invite(max_uses=0, unique=True, reason=f"Реферальне посилання для {user.name}")
+            invite_url = new_invite.url
 
-            if existing_invite:
-                invite_url = existing_invite.url
-            else:
-                # Створюємо новий інвайт
-                channel = guild.system_channel or guild.text_channels[0]
-                new_invite = await channel.create_invite(max_uses=0, unique=True, reason=f"Реферальне посилання для {user.name}")
-                invite_url = new_invite.url
+            # Зберігаємо invite.code + inviter.id
+            try:
+                conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO invite_codes (code, inviter_id)
+                    VALUES (%s, %s)
+                    ON CONFLICT (code) DO NOTHING
+                """, (new_invite.code, user.id))
+                conn.commit()
+                cursor.close()
+                conn.close()
+                print(f"🔗 Збережено інвайт {new_invite.code} від {user.id}")
+            except Exception as e:
+                print("❌ Не вдалося зберегти invite code:", e)
 
             await interaction.response.send_message(
                 f"🔗 Ось твоє реферальне посилання:\n{invite_url}\n"
-                "Роздай його друзям! Після першого замовлення твого реферала — ти отримаєш бонус!",
+                "Передай його друзям! Бонус буде нараховано після їхнього першого замовлення.",
                 ephemeral=True
             )
 
