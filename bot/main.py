@@ -52,21 +52,30 @@ invite_cache = {}
 
 @bot.event
 async def on_ready():
+    # Видаляємо зайві таблиці
+    try:
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        cursor = conn.cursor()
+        cursor.execute("DROP TABLE IF EXISTS invite_codes CASCADE;")
+        cursor.execute("DROP TABLE IF EXISTS invites CASCADE;")
+        conn.commit()
+        cursor.close()
+        conn.close()
+        print("🧹 Таблиці invite_codes та invites успішно видалено.")
+    except Exception as e:
+        print(f"❌ Помилка при видаленні таблиць: {e}")
+
     await init_db()
     print(f"✅ Logged in as {bot.user}")
 
-    for guild in bot.guilds:
-        invites = await guild.invites()
-        invite_cache[guild.id] = invites
-
-    # Спроба синхронізувати слеш-команди
     try:
         synced = await bot.tree.sync()
-        print(f"🔁 Slash-команди синхронізовано: {len(synced)}")
+        print(f"📦 Slash-команди синхронізовано: {len(synced)}")
     except Exception as e:
         print("❌ Помилка при синхронізації слеш-команд:", e)
 
     bot.add_view(ResourceButtonsView())
+
 
 # ==============================================
 #           [Блок: Slash команда]
@@ -186,28 +195,6 @@ async def add_referral(ctx, inviter_id: int, invited_id: int):
     except Exception as e:
         print("❌ Помилка при додаванні реферала:", e)
         await ctx.send("❌ Помилка при додаванні реферала.")
-
-# =============================================
-# [Блок: Видалення зайвих таблиць]
-# =============================================
-@bot.tree.command(name="видалити_зайві_таблиці", description="Видалити зайві таблиці з бази даних")
-@app_commands.checks.has_permissions(administrator=True)
-async def delete_unused_tables(interaction: discord.Interaction):
-    try:
-        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
-        cursor = conn.cursor()
-
-        cursor.execute("DROP TABLE IF EXISTS invite_codes CASCADE;")
-        cursor.execute("DROP TABLE IF EXISTS invites CASCADE;")
-        conn.commit()
-
-        cursor.close()
-        conn.close()
-
-        await interaction.response.send_message("✅ Таблиці `invite_codes` та `invites` успішно видалено.", ephemeral=True)
-    except Exception as e:
-        await interaction.response.send_message(f"❌ Помилка при видаленні таблиць: {e}", ephemeral=True)
-
 
 # ==============================================
 #           [Блок: Розсилка знижок за рефералів]
