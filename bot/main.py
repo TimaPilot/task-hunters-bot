@@ -197,6 +197,41 @@ async def add_referral(ctx, inviter_id: int, invited_id: int):
         await ctx.send("❌ Помилка при додаванні реферала.")
 
 # ==============================================
+#           [Блок: Статистика рефералів (Адмін)]
+# ==============================================
+@bot.command(name="рефстатистика")
+@commands.is_owner()
+async def referral_stats(ctx):
+    """Показує кількість рефералів у кожного"""
+    try:
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT inviter_id,
+                   COUNT(*) as total,
+                   COUNT(*) FILTER (WHERE confirmed = TRUE) as confirmed
+            FROM referrals
+            GROUP BY inviter_id
+            ORDER BY total DESC
+        """)
+        rows = cursor.fetchall()
+        cursor.close()
+        conn.close()
+
+        if not rows:
+            await ctx.send("📉 Немає жодного реферала в системі.")
+            return
+
+        msg = "**📊 Статистика рефералів:**\n\n"
+        for inviter_id, total, confirmed in rows:
+            msg += f"👤 <@{inviter_id}> — **{total}** всього / ✅ **{confirmed}** підтверджено\n"
+
+        await ctx.send(msg)
+    except Exception as e:
+        print("❌ Помилка статистики:", e)
+        await ctx.send("❌ Не вдалося отримати статистику.")
+
+# ==============================================
 #           [Блок: Розсилка знижок за рефералів]
 # ==============================================
 @bot.command()
