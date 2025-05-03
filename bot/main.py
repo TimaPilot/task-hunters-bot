@@ -65,26 +65,8 @@ async def on_ready():
         print(f"🔁 Slash-команди синхронізовано: {len(synced)}")
     except Exception as e:
         print("❌ Помилка при синхронізації слеш-команд:", e)
-    await ensure_invite_code_table()
 
     bot.add_view(ResourceButtonsView())
-
-async def ensure_invite_code_table():
-    try:
-        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
-        cursor = conn.cursor()
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS invite_codes (
-                code TEXT PRIMARY KEY,
-                inviter_id BIGINT
-            );
-        """)
-        conn.commit()
-        cursor.close()
-        conn.close()
-        print("📁 Таблиця invite_codes створена або існує")
-    except Exception as e:
-        print("❌ Помилка створення invite_codes:", e)
 
 # ==============================================
 #           [Блок: Slash команда]
@@ -100,60 +82,7 @@ async def ping(interaction: discord.Interaction):
 #           [Блок: Привітання новеньких]
 # ==============================================
 @bot.event
-@bot.event
 async def on_member_join(member):
-    guild = member.guild
-    bot_id = bot.user.id
-
-    # Отримуємо новий список інвайтів
-    new_invites = await guild.invites()
-    old_invites = invite_cache.get(guild.id, [])
-    used_invite_code = None
-
-    for invite in new_invites:
-        for old in old_invites:
-            if invite.code == old.code and invite.uses > old.uses:
-                used_invite_code = invite.code
-                break
-        if used_invite_code:
-            break
-
-    invite_cache[guild.id] = new_invites
-
-    if used_invite_code:
-        try:
-            conn = psycopg2.connect(os.getenv("DATABASE_URL"))
-            cursor = conn.cursor()
-
-            # Дістаємо реального inviter_id з таблиці invite_codes
-            cursor.execute("""
-                SELECT inviter_id FROM invite_codes WHERE code = %s
-            """, (used_invite_code,))
-            row = cursor.fetchone()
-
-            if row:
-                inviter_id = row[0]
-                invited_id = member.id
-
-                if inviter_id != bot_id:
-                    cursor.execute("""
-                        INSERT INTO referrals (inviter_id, invited_id)
-                        VALUES (%s, %s)
-                        ON CONFLICT (invited_id) DO NOTHING
-                    """, (inviter_id, invited_id))
-                    conn.commit()
-                    print(f"🧾 Додано реферал: {inviter_id} → {invited_id}")
-                else:
-                    print("⚠️ Спроба рефералу від бота — пропущено.")
-            else:
-                print(f"❓ Код {used_invite_code} не знайдено в invite_codes")
-
-            cursor.close()
-            conn.close()
-        except Exception as e:
-            print("❌ Помилка при збереженні реферала:", e)
-
-
 
     # 4️⃣ Привітання 
     channel = bot.get_channel(1356270026688041171)  # ID твого каналу
@@ -235,6 +164,28 @@ async def clear_orders_by_status(ctx, *, status: str):
 
     await delete_orders_by_status(status)
     await ctx.send(f"🧹 Видалено всі замовлення зі статусом: **{status}**.")
+
+# ==============================================
+#           [Блок: Додавання реферала]
+# ==============================================
+@bot.command(name="додати_реферала")
+@commands.is_owner()
+async def add_referral(ctx, inviter_id: int, invited_id: int):
+    try:
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO referrals (inviter_id, invited_id)
+            VALUES (%s, %s)
+            ON CONFLICT (invited_id) DO NOTHING
+        """, (inviter_id, invited_id))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        await ctx.send(f"✅ Реферал доданий: `{inviter_id}` → `{invited_id}`.")
+    except Exception as e:
+        print("❌ Помилка при додаванні реферала:", e)
+        await ctx.send("❌ Помилка при додаванні реферала.")
 
 # ==============================================
 #           [Блок: Розсилка знижок за рефералів]
@@ -725,7 +676,6 @@ class CancelOrderButtonView(View):
 class ReferralView(View):
     def __init__(self):
         super().__init__(timeout=None)
-        self.add_item(Button(label="🎟️ Отримати посилання", style=discord.ButtonStyle.primary, custom_id="get_ref_link"))
         self.add_item(Button(label="👥 Мої реферали", style=discord.ButtonStyle.secondary, custom_id="my_referrals"))
 
 class ResourceButtonsView(View):
