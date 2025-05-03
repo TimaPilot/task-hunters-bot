@@ -187,6 +187,28 @@ async def add_referral(ctx, inviter_id: int, invited_id: int):
         print("❌ Помилка при додаванні реферала:", e)
         await ctx.send("❌ Помилка при додаванні реферала.")
 
+# =============================================
+# [Блок: Видалення зайвих таблиць]
+# =============================================
+@bot.tree.command(name="видалити_зайві_таблиці", description="Видалити зайві таблиці з бази даних")
+@app_commands.checks.has_permissions(administrator=True)
+async def delete_unused_tables(interaction: discord.Interaction):
+    try:
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        cursor = conn.cursor()
+
+        cursor.execute("DROP TABLE IF EXISTS invite_codes CASCADE;")
+        cursor.execute("DROP TABLE IF EXISTS invites CASCADE;")
+        conn.commit()
+
+        cursor.close()
+        conn.close()
+
+        await interaction.response.send_message("✅ Таблиці `invite_codes` та `invites` успішно видалено.", ephemeral=True)
+    except Exception as e:
+        await interaction.response.send_message(f"❌ Помилка при видаленні таблиць: {e}", ephemeral=True)
+
+
 # ==============================================
 #           [Блок: Розсилка знижок за рефералів]
 # ==============================================
