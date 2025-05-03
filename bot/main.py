@@ -82,9 +82,9 @@ async def ensure_invite_code_table():
         conn.commit()
         cursor.close()
         conn.close()
-        print("📁 Таблиця invite_codes перевірена або створена.")
+        print("📁 Таблиця invite_codes створена або існує")
     except Exception as e:
-        print("❌ Помилка при створенні invite_codes:", e)
+        print("❌ Помилка створення invite_codes:", e)
 
 # ==============================================
 #           [Блок: Slash команда]
@@ -100,12 +100,16 @@ async def ping(interaction: discord.Interaction):
 #           [Блок: Привітання новеньких]
 # ==============================================
 @bot.event
+@bot.event
 async def on_member_join(member):
     guild = member.guild
+    bot_id = bot.user.id
+
+    # Отримуємо новий список інвайтів
     new_invites = await guild.invites()
     old_invites = invite_cache.get(guild.id, [])
-
     used_invite_code = None
+
     for invite in new_invites:
         for old in old_invites:
             if invite.code == old.code and invite.uses > old.uses:
@@ -114,14 +118,14 @@ async def on_member_join(member):
         if used_invite_code:
             break
 
-    invite_cache[guild.id] = new_invites  # оновлюємо кеш
+    invite_cache[guild.id] = new_invites
 
     if used_invite_code:
         try:
             conn = psycopg2.connect(os.getenv("DATABASE_URL"))
             cursor = conn.cursor()
 
-            # Знаходимо того, хто створив саме цей код
+            # Дістаємо реального inviter_id з таблиці invite_codes
             cursor.execute("""
                 SELECT inviter_id FROM invite_codes WHERE code = %s
             """, (used_invite_code,))
@@ -131,20 +135,24 @@ async def on_member_join(member):
                 inviter_id = row[0]
                 invited_id = member.id
 
-                cursor.execute("""
-                    INSERT INTO referrals (inviter_id, invited_id)
-                    VALUES (%s, %s)
-                    ON CONFLICT (invited_id) DO NOTHING
-                """, (inviter_id, invited_id))
-                conn.commit()
-                print(f"💾 Додано реферал: {inviter_id} → {invited_id}")
+                if inviter_id != bot_id:
+                    cursor.execute("""
+                        INSERT INTO referrals (inviter_id, invited_id)
+                        VALUES (%s, %s)
+                        ON CONFLICT (invited_id) DO NOTHING
+                    """, (inviter_id, invited_id))
+                    conn.commit()
+                    print(f"🧾 Додано реферал: {inviter_id} → {invited_id}")
+                else:
+                    print("⚠️ Спроба рефералу від бота — пропущено.")
             else:
-                print(f"⚠️ Код {used_invite_code} не знайдений у базі!")
+                print(f"❓ Код {used_invite_code} не знайдено в invite_codes")
 
             cursor.close()
             conn.close()
         except Exception as e:
             print("❌ Помилка при збереженні реферала:", e)
+
 
 
     # 4️⃣ Привітання 
@@ -1019,31 +1027,35 @@ async def on_interaction(interaction: discord.Interaction):
 # ...............................................................
 #           [Блок: підтвердження реферала]
 # ...............................................................                
+# ..........................
+# [Блок: підтвердження реферала]
+# ..........................
+
             try:
                 conn = psycopg2.connect(os.getenv("DATABASE_URL"))
                 cursor = conn.cursor()
 
-                # Перевірка чи вже підтверджений
+                # Перевіряємо, чи вже підтверджений
                 cursor.execute("""
                     SELECT confirmed FROM referrals WHERE invited_id = %s
                 """, (str(customer_id),))
                 confirmed_row = cursor.fetchone()
 
-                if confirmed_row and confirmed_row[0]:  # Вже confirmed = TRUE
+                if confirmed_row and confirmed_row[0]:  # Якщо confirmed = TRUE
                     print("🔁 Реферал вже підтверджений — пропускаємо.")
                     cursor.close()
                     conn.close()
                     return
-                
+
+                # Перевірка, чи це перше завершене замовлення
                 cursor.execute("""
                     SELECT COUNT(*) FROM orders
                     WHERE customer_id = %s AND status = 'Виконано'
                 """, (str(customer_id),))
                 completed_orders = cursor.fetchone()[0]
 
-
                 if completed_orders == 1:
-                    # Оновлюємо confirmed у таблиці referrals
+                    # ✅ Оновлюємо confirmed
                     cursor.execute("""
                         UPDATE referrals
                         SET confirmed = TRUE
@@ -1060,15 +1072,25 @@ async def on_interaction(interaction: discord.Interaction):
 
                     if inviter_row:
                         inviter_id = int(inviter_row[0])
+                        bot_id = bot.user.id
+
+                        if inviter_id == bot_id:
+                            print("⚠️ Реферал прив'язаний до самого бота — бонус не нараховується.")
+                            cursor.close()
+                            conn.close()
+                            return
+
+                        # ✅ Видати бонус
                         await check_and_grant_referral_bonus(interaction.guild, inviter_id)
 
-                        # Надсилаємо повідомлення в канал по ID
-                        cabinet_channel_id = 1361872158435053759  # 🔁 ID каналу "Особистий кабінет"
+                        # Надсилаємо повідомлення в канал
+                        cabinet_channel_id = 1361871258435023759  # ID каналу "Особистий кабінет"
                         cabinet_channel = bot.get_channel(cabinet_channel_id)
 
                         if cabinet_channel:
                             await cabinet_channel.send(
-                                f"🎉 <@{inviter_id}>, твій реферал <@{customer_id}> підтверджений! Він виконав перше замовлення. Дякуємо за активність ❤️"
+                                f"🎉 <@{inviter_id}>, твій реферал <@{customer_id}> підтверджений! "
+                                f"Він виконав перше замовлення. Дякуємо за активність ❤️"
                             )
 
                 cursor.close()
@@ -1076,6 +1098,7 @@ async def on_interaction(interaction: discord.Interaction):
 
             except Exception as e:
                 print("❌ Помилка при підтвердженні реферала:", e)
+
 
 # ...............................................................
 #           [Блок: створення реферального посилання]
@@ -1088,7 +1111,7 @@ async def on_interaction(interaction: discord.Interaction):
             new_invite = await channel.create_invite(max_uses=0, unique=True, reason=f"Реферальне посилання для {user.name}")
             invite_url = new_invite.url
 
-            # Зберігаємо invite.code + inviter.id
+            # Зберігаємо invite.code + inviter_id
             try:
                 conn = psycopg2.connect(os.getenv("DATABASE_URL"))
                 cursor = conn.cursor()
@@ -1100,7 +1123,7 @@ async def on_interaction(interaction: discord.Interaction):
                 conn.commit()
                 cursor.close()
                 conn.close()
-                print(f"🔗 Збережено інвайт {new_invite.code} від {user.id}")
+                print(f"✅ Збережено інвайт {new_invite.code} від {user.id}")
             except Exception as e:
                 print("❌ Не вдалося зберегти invite code:", e)
 
