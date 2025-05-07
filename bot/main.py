@@ -411,42 +411,34 @@ async def сповістити_знижку(ctx):
 # ==============================================
 @bot.command(name="моя_статистика")
 async def my_stats(ctx):
-    user_id = ctx.author.id
-
+    user_id = str(ctx.author.id)
     try:
         conn = psycopg2.connect(os.getenv("DATABASE_URL"))
         cursor = conn.cursor()
 
-        # Отримуємо всі завершені замовлення для цього мисливця
         cursor.execute("""
-            SELECT resource
-            FROM orders
-            WHERE hunter_id = %s AND status = 'Завершено'
-        """, (user_id,))
-        orders = cursor.fetchall()
-        total_orders = len(orders)
+            SELECT
+              COUNT(*) as total_orders,
+              COALESCE(SUM(rp.price), 0) as total_earned
+            FROM orders o
+            JOIN resource_prices rp ON o.details = rp.resource
+            WHERE o.hunter = %s AND o.status = 'Виконано';
+        """, (ctx.author.name,))  # або user_id якщо поле hunter — ID
+        result = cursor.fetchone()
 
-        # Рахуємо заробіток
-        total_earned = 0
-        for row in orders:
-            resource = row[0]
-            cursor.execute("SELECT price FROM resource_prices WHERE resource = %s", (resource,))
-            result = cursor.fetchone()
-            if result:
-                total_earned += result[0]
+        total_orders = result[0]
+        total_earned = result[1]
 
         await ctx.send(
             f"📊 **Ваша статистика:**\n"
-            f"🧾 Виконаних замовлень: **{total_orders}**\n"
-            f"💰 Зароблено: **{total_earned}$**"
+            f"🔹 Виконано замовлень: **{total_orders}**\n"
+            f"💰 Зароблено: **{total_earned:,} $**"
         )
 
         cursor.close()
         conn.close()
-
     except Exception as e:
         await ctx.send(f"❌ Помилка при отриманні статистики: {e}")
-
 # ==============================================
 #           [Блок: Особистий кабінет]
 # ==============================================
