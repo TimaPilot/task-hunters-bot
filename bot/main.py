@@ -231,6 +231,88 @@ async def referral_stats(ctx):
         print("❌ Помилка статистики:", e)
         await ctx.send("❌ Не вдалося отримати статистику.")
 
+@bot.command(name="рефдетальна")
+@commands.is_owner()
+async def detailed_referral_stats(ctx):
+    """Показує, кого конкретно запросив кожен"""
+    try:
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT inviter_id, invited_id, confirmed FROM referrals
+            ORDER BY inviter_id
+        """)
+        rows = cursor.fetchall()
+        cursor.close()
+        conn.close()
+
+        if not rows:
+            await ctx.send("📉 Немає жодного реферала.")
+            return
+
+        ref_map = {}
+        for inviter_id, invited_id, confirmed in rows:
+            ref_map.setdefault(inviter_id, []).append((invited_id, confirmed))
+
+        msg = "**📋 Детальна реферальна статистика:**\n\n"
+        for inviter_id, invited_list in ref_map.items():
+            mentions = [
+                f"{'✅' if confirmed else '❌'} <@{invited_id}>"
+                for invited_id, confirmed in invited_list
+            ]
+            msg += f"<@{inviter_id}>:\n" + "\n".join(mentions) + "\n\n"
+
+        await ctx.send(msg[:2000])  # Discord ліміт
+    except Exception as e:
+        print("❌ Помилка при detailed_referral_stats:", e)
+        await ctx.send("❌ Не вдалося отримати детальну статистику.")
+
+
+# =================================================================
+#           [Блок: Подивитись особистий кабінет інших гравців]
+# =================================================================
+@bot.command(name="кабінет_за_id")
+@commands.is_owner()
+async def cabinet_by_id(ctx, user_id: int):
+    total_orders, completed_count = get_user_order_stats(user_id)
+    total_spent = get_total_spent(user_id)
+
+    bonus_row = None
+    try:
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT permanent_discount, used_discount_10, free_orders
+            FROM user_bonuses
+            WHERE user_id = %s
+        """, (user_id,))
+        bonus_row = cursor.fetchone()
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        print("❌ Помилка при отриманні бонусів:", e)
+
+    discount_text = "0%"
+    free_orders_text = "0"
+
+    if bonus_row:
+        permanent_discount, used_discount_10, free_orders = bonus_row
+        if permanent_discount > 0:
+            discount_text = f"{'Одноразова' if not used_discount_10 else 'Постійна'} {permanent_discount}%"
+        if free_orders > 0:
+            free_orders_text = str(free_orders)
+
+    embed = discord.Embed(title="🧾 Особистий кабінет (через ID)", color=0x00ffcc)
+    embed.add_field(name="👤 User ID", value=str(user_id), inline=False)
+    embed.add_field(name="📦 Замовлень (всього)", value=str(total_orders), inline=True)
+    embed.add_field(name="✅ Виконано", value=str(completed_count), inline=True)
+    embed.add_field(name="💰 Витрачено", value=f"${total_spent}", inline=True)
+    embed.add_field(name="🎟️ Знижка", value=discount_text, inline=True)
+    embed.add_field(name="🎁 Безкоштовні замовлення", value=free_orders_text, inline=True)
+
+    await ctx.send(embed=embed)
+
 # ==============================================
 #           [Блок: Розсилка знижок за рефералів]
 # ==============================================
