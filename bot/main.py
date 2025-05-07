@@ -269,6 +269,48 @@ async def detailed_referral_stats(ctx):
         await ctx.send("❌ Не вдалося отримати детальну статистику.")
 
 
+# ===========================================
+#           [Блок: Оновити бонуси]
+# ===========================================
+@bot.command(name="оновити_бонуси")
+@commands.has_permissions(administrator=True)
+async def update_bonuses(ctx):
+    try:
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        cursor = conn.cursor()
+
+        # Отримуємо всіх підтверджених рефералів
+        cursor.execute("""
+            SELECT inviter_id, invited_id FROM referrals WHERE confirmed = true
+        """)
+        confirmed_referrals = cursor.fetchall()
+
+        updated_users = set()
+
+        for inviter_id, invited_id in confirmed_referrals:
+            # Перевірка: чи реферал зробив хоч одне замовлення
+            cursor.execute("""
+                SELECT COUNT(*) FROM orders WHERE user_id = %s
+            """, (invited_id,))
+            order_count = cursor.fetchone()[0]
+
+            if order_count > 0:
+                # Оновлюємо або додаємо запис у user_bonuses
+                cursor.execute("""
+                    INSERT INTO user_bonuses (user_id, permanent_discount, used_discount_10)
+                    VALUES (%s, 10, false)
+                    ON CONFLICT (user_id) DO UPDATE SET permanent_discount = 10
+                """, (inviter_id,))
+                updated_users.add(inviter_id)
+
+        conn.commit()
+        await ctx.send(f"✅ Оновлено бонуси для {len(updated_users)} користувачів.")
+        cursor.close()
+        conn.close()
+
+    except Exception as e:
+        await ctx.send(f"❌ Помилка при оновленні бонусів: {e}")
+
 # =================================================================
 #           [Блок: Подивитись особистий кабінет інших гравців]
 # =================================================================
@@ -363,6 +405,39 @@ async def сповістити_знижку(ctx):
             print(f"❌ Не вдалося надіслати повідомлення для {user_id}: {e}")
 
     await ctx.send("✅ Повідомлення надіслані всім користувачам зі знижкою.")
+
+# ==============================================
+#           [Блок: Особистий кабінет мисливця]
+# ==============================================
+@bot.command(name="моя_статистика")
+async def my_stats(ctx):
+    user_id = ctx.author.id
+
+    try:
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        cursor = conn.cursor()
+
+        # Отримати кількість завершених замовлень і загальний заробіток
+        cursor.execute("""
+            SELECT COUNT(*), COALESCE(SUM(price), 0)
+            FROM orders
+            WHERE hunter_id = %s AND status = 'Завершено'
+        """, (user_id,))
+        result = cursor.fetchone()
+        completed_orders = result[0]
+        total_earned = result[1]
+
+        await ctx.send(
+            f"📊 **Ваша статистика:**\n"
+            f"🧾 Виконаних замовлень: **{completed_orders}**\n"
+            f"💰 Зароблено: **${total_earned}**"
+        )
+
+        cursor.close()
+        conn.close()
+
+    except Exception as e:
+        await ctx.send(f"❌ Помилка при отриманні статистики: {e}")
 
 # ==============================================
 #           [Блок: Особистий кабінет]
