@@ -279,32 +279,40 @@ async def update_bonuses(ctx):
         conn = psycopg2.connect(os.getenv("DATABASE_URL"))
         cursor = conn.cursor()
 
-        # Отримуємо всіх підтверджених рефералів
+        # Витягуємо всі непідтверджені реферали
         cursor.execute("""
-            SELECT inviter_id, invited_id FROM referrals WHERE confirmed = true
+            SELECT id, inviter_id, invited_id
+            FROM referrals
+            WHERE confirmed = false
         """)
-        confirmed_referrals = cursor.fetchall()
+        referrals = cursor.fetchall()
 
-        updated_users = set()
+        updated_count = 0
 
-        for inviter_id, invited_id in confirmed_referrals:
-            # Перевірка: чи реферал зробив хоч одне замовлення
+        for ref_id, inviter_id, invited_id in referrals:
+            # Перевірка, чи реферал зробив хоч одне замовлення
             cursor.execute("""
-                SELECT COUNT(*) FROM orders WHERE user_id = %s
+                SELECT COUNT(*) FROM orders
+                WHERE customer_id = %s AND status = 'Виконано'
             """, (invited_id,))
             order_count = cursor.fetchone()[0]
 
             if order_count > 0:
-                # Оновлюємо або додаємо запис у user_bonuses
+                # Позначаємо реферал як підтверджений
                 cursor.execute("""
-                    INSERT INTO user_bonuses (user_id, permanent_discount, used_discount_10)
-                    VALUES (%s, 10, false)
-                    ON CONFLICT (user_id) DO UPDATE SET permanent_discount = 10
+                    UPDATE referrals SET confirmed = true WHERE id = %s
+                """, (ref_id,))
+
+                # Додаємо бонус inviter'у (перевірка наявності рядка опускається, бо ми це вже робили раніше)
+                cursor.execute("""
+                    UPDATE user_bonuses SET permanent_discount = 10
+                    WHERE user_id = %s
                 """, (inviter_id,))
-                updated_users.add(inviter_id)
+                updated_count += 1
 
         conn.commit()
-        await ctx.send(f"✅ Оновлено бонуси для {len(updated_users)} користувачів.")
+        await ctx.send(f"✅ Оновлено {updated_count} бонус(ів) для підтверджених рефералів.")
+
         cursor.close()
         conn.close()
 
@@ -439,6 +447,8 @@ async def my_stats(ctx):
         conn.close()
     except Exception as e:
         await ctx.send(f"❌ Помилка при отриманні статистики: {e}")
+
+
 # ==============================================
 #           [Блок: Особистий кабінет]
 # ==============================================
