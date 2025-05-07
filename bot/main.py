@@ -417,20 +417,28 @@ async def my_stats(ctx):
         conn = psycopg2.connect(os.getenv("DATABASE_URL"))
         cursor = conn.cursor()
 
-        # Отримати кількість завершених замовлень і загальний заробіток
+        # Отримуємо всі завершені замовлення для цього мисливця
         cursor.execute("""
-            SELECT COUNT(*), COALESCE(SUM(price), 0)
+            SELECT resource
             FROM orders
             WHERE hunter_id = %s AND status = 'Завершено'
         """, (user_id,))
-        result = cursor.fetchone()
-        completed_orders = result[0]
-        total_earned = result[1]
+        orders = cursor.fetchall()
+        total_orders = len(orders)
+
+        # Рахуємо заробіток
+        total_earned = 0
+        for row in orders:
+            resource = row[0]
+            cursor.execute("SELECT price FROM resource_prices WHERE resource = %s", (resource,))
+            result = cursor.fetchone()
+            if result:
+                total_earned += result[0]
 
         await ctx.send(
             f"📊 **Ваша статистика:**\n"
-            f"🧾 Виконаних замовлень: **{completed_orders}**\n"
-            f"💰 Зароблено: **${total_earned}**"
+            f"🧾 Виконаних замовлень: **{total_orders}**\n"
+            f"💰 Зароблено: **{total_earned}$**"
         )
 
         cursor.close()
