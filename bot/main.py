@@ -1186,10 +1186,30 @@ async def on_interaction(interaction: discord.Interaction):
                     )
 
             # 🛠️ Оновлюємо повідомлення з кнопкою
-            await interaction.response.edit_message(
+            new_msg = await interaction.response.edit_message(
                 content="📦 Замовлення зібране! Замовнику надіслано повідомлення.",
                 view=OrderProgressView(customer, resource_key, order_id, stage="ready")
             )
+
+            # Але interaction.response.edit_message НЕ повертає message, тому:
+            # ➕ Додатково отримуємо його з каналу
+
+            try:
+                hunters_channel = interaction.guild.get_channel(1356291670110507069)
+                new_msg_ref = await hunters_channel.fetch_message(interaction.message.id)
+
+                conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE orders SET hunter_message_id = %s WHERE id = %s
+                """, (new_msg_ref.id, order_id))
+                conn.commit()
+                cursor.close()
+                conn.close()
+
+            except Exception as e:
+                print("❌ Не вдалося оновити hunter_message_id після 'Зібрано':", e)
+
 
 
         elif cid.startswith("finish_"):
@@ -1213,7 +1233,6 @@ async def on_interaction(interaction: discord.Interaction):
                     await old_msg.delete()
                 except Exception as e:
                     print("❌ Не вдалося видалити повідомлення з кнопкою Зібрано:", e)
-
 
             # Повідомлення в тому ж повідомленні
             await interaction.response.edit_message(
