@@ -1123,6 +1123,17 @@ async def on_interaction(interaction: discord.Interaction):
         elif cid.startswith("ready_"):
             order_id = int(cid.replace("ready_", ""))
             order = await get_order_by_id(order_id)
+            # 🧹 Видалення повідомлення з кнопкою "Прийнято"
+            msg_id = order.get("hunter_accept_message_id")
+            if msg_id:
+                try:
+                    hunter_channel = interaction.guild.get_channel(1356291670110507069)  # #виконання-замовлень
+                    msg = await hunter_channel.fetch_message(msg_id)
+                    await msg.delete()
+                    print(f"🧹 Видалено hunter_accept_message_id: {msg_id}")
+                except Exception as e:
+                    print(f"⚠️ Не вдалося видалити повідомлення з кнопкою Прийнято: {e}")
+
             customer_id = order["customer_id"]
             customer = await interaction.guild.fetch_member(customer_id)
             resource = order["details"]
