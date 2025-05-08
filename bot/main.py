@@ -1183,38 +1183,22 @@ async def on_interaction(interaction: discord.Interaction):
                 )
 
                 try:
-                    # Порахуємо скільки завершених замовлень
                     conn = psycopg2.connect(os.getenv("DATABASE_URL"))
                     cursor = conn.cursor()
+
                     cursor.execute("""
                         SELECT COUNT(*) FROM orders WHERE customer_id = %s AND status = 'Виконано'
                     """, (str(customer_id),))
                     completed_orders = cursor.fetchone()[0]
+
                     cursor.close()
                     conn.close()
 
-                    # Отримаємо канал відгуків по ID
-                    feedback_channel = interaction.guild.get_channel(1356362829099303160)  # ID твого каналу #🗨️-відгуки
-                    has_feedback = False
-
-                    print(f"[DEBUG] customer_id: {customer_id} (type: {type(customer_id)})")
-                    print(f"[DEBUG] completed_orders: {completed_orders}")
-
-                    if feedback_channel:
-                        async for message in feedback_channel.history(limit=50):
-                            print(f"[DEBUG] message.author.id: {message.author.id} (type: {type(message.author.id)}) | content: {message.content[:30]}")
-                            if message.author.id == int(customer_id):
-                                print(f"[DEBUG] Виявлено існуючий відгук від {customer_id}")
-                                has_feedback = True
-                                break
-
-                    if completed_orders == 1 and not has_feedback:
-                        await notify_channel.send("💬 Будемо раді бачити Ваш відгук в каналі <#1356362829099303160>!")
+                    if completed_orders == 1:
+                        await notify_channel.send("💬 Будемо раді бачити Ваш відгук в каналі <#1353636282990932160>!")
 
                 except Exception as e:
-                    print("❌ Помилка при перевірці першого відгуку:", e)
-
-
+                    print("❌ Помилка при перевірці кількості виконаних замовлень:", e)
 
 # ...............................................................
 #           [Блок: підтвердження реферала]
