@@ -1179,7 +1179,7 @@ async def on_interaction(interaction: discord.Interaction):
             notify_channel = discord.utils.get(interaction.guild.text_channels, name="📝-зробити-замовлення")
             if notify_channel:
                 await notify_channel.send(
-                    f"{customer.mention}, Ваше замовлення було позначено як **виконане**. Дякуємо, що скористались нашими послугами! 🧡"
+                    f"{customer.mention}, Ваше замовлення було позначено як **виконане**. Дякуємо, що скористались нашими послугами! 🤎"
                 )
 
                 try:
@@ -1199,7 +1199,7 @@ async def on_interaction(interaction: discord.Interaction):
 
                     if feedback_channel:
                         async for message in feedback_channel.history(limit=100):
-                            if message.author.id == customer_id:
+                            if message.author.id == int(customer_id):
                                 has_feedback = True
                                 break
 
