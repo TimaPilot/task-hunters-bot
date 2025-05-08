@@ -1056,6 +1056,16 @@ async def on_interaction(interaction: discord.Interaction):
         elif cid.startswith("accept_order_"):
             order_id = int(cid.replace("accept_order_", ""))
             order = await get_order_by_id(order_id)
+            # 🧹 Видалення повідомлення користувача з кнопкою ❌
+            msg_id = order.get("user_message_id")
+            if msg_id:
+                try:
+                    user_channel = interaction.guild.get_channel(1356283008478478546)  # #зробити-замовлення
+                    msg = await user_channel.fetch_message(msg_id)
+                    await msg.delete()
+                    print(f"🧹 Видалено user_message_id: {msg_id}")
+                except Exception as e:
+                    print(f"⚠️ Не вдалося видалити повідомлення замовника: {e}")
             resource = order["details"]
             hunter = user
 
@@ -1083,19 +1093,7 @@ async def on_interaction(interaction: discord.Interaction):
         elif cid.startswith("cancel_"):
             order_id = int(cid.replace("cancel_", ""))
             order = await get_order_by_id(order_id)
-
-            # 🧹 Видалення повідомлення користувача з кнопкою ❌
-            msg_id = order.get("user_message_id")
-            if msg_id:
-                try:
-                    user_channel = interaction.guild.get_channel(1356283008478478546)  # #зробити-замовлення
-                    msg = await user_channel.fetch_message(msg_id)
-                    await msg.delete()
-                    print(f"🧹 Видалено user_message_id: {msg_id}")
-                except Exception as e:
-                    print(f"⚠️ Не вдалося видалити повідомлення замовника: {e}")
-
-
+            
             if order["status"] != "Очікує":
                 await interaction.response.send_message("⚠️ Це замовлення вже в роботі й не може бути скасоване.", ephemeral=True)
                 return
