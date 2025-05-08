@@ -978,7 +978,7 @@ async def on_interaction(interaction: discord.Interaction):
                 conn = psycopg2.connect(os.getenv("DATABASE_URL"))
                 cursor = conn.cursor()
                 cursor.execute("""
-                    UPDATE orders SET hunter_message_id = %s WHERE id = %s
+                    UPDATE orders SET hunter_accept_message_id = %s WHERE id = %s
                 """, (message.id, order_id))
                 conn.commit()
                 cursor.close()
@@ -1029,7 +1029,7 @@ async def on_interaction(interaction: discord.Interaction):
                 conn = psycopg2.connect(os.getenv("DATABASE_URL"))
                 cursor = conn.cursor()
                 cursor.execute("""
-                    UPDATE orders SET hunter_message_id = %s WHERE id = %s
+                    UPDATE orders SET user_message_id = %s WHERE id = %s
                 """, (user_message.id, order_id))
                 conn.commit()
                 cursor.close()
@@ -1043,7 +1043,7 @@ async def on_interaction(interaction: discord.Interaction):
             order = await get_order_by_id(order_id)
             
             # 🧽 Видалення hunter-повідомлення
-            message_id = order.get("hunter_message_id")
+            message_id = order.get("user_message_id")
             if message_id:
                 try:
                     hunters_channel = interaction.guild.get_channel(1356291670110507069)
@@ -1094,7 +1094,7 @@ async def on_interaction(interaction: discord.Interaction):
             )
 
             # 🧽 Видалення повідомлення замовника
-            message_id = order.get("hunter_message_id")
+            message_id = order.get("user_message_id")
             if message_id:
                 try:
                     customer_channel = interaction.guild.get_channel(1356283008478478546)  # зробити-замовлення
@@ -1154,7 +1154,7 @@ async def on_interaction(interaction: discord.Interaction):
             await mark_order_collected(order_id)
 
             # 🧹 Видаляємо попереднє повідомлення мисливців
-            msg_id = order.get("hunter_message_id")
+            msg_id = order.get("hunter_accept_message_id")
             if msg_id:
                 try:
                     hunters_channel = interaction.guild.get_channel(1356291670110507069)  # ✅-виконання-замовлень
@@ -1203,7 +1203,7 @@ async def on_interaction(interaction: discord.Interaction):
                     conn = psycopg2.connect(os.getenv("DATABASE_URL"))
                     cursor = conn.cursor()
                     cursor.execute("""
-                        UPDATE orders SET hunter_message_id = %s WHERE id = %s
+                        UPDATE orders SET hunter_ready_message_id = %s WHERE id = %s
                     """, (updated_msg.id, order_id))
                     conn.commit()
                     cursor.close()
@@ -1230,16 +1230,17 @@ async def on_interaction(interaction: discord.Interaction):
             await update_order_status_by_id(order_id, "Виконано", hunter_name=user.name)
 
             # 🧹 Видаляємо повідомлення з кнопкою "📦 Зібрано"
-            msg_id = order.get("hunter_message_id")
+            msg_id = order.get("hunter_ready_message_id")
             if msg_id:
                 try:
                     hunters_channel = interaction.guild.get_channel(1356291670110507069)
                     old_msg = await hunters_channel.fetch_message(msg_id)
                     await old_msg.delete()
+                except discord.errors.NotFound:
+                    print("⚠️ Повідомлення вже було видалено.")
                 except Exception as e:
                     print("❌ Не вдалося видалити повідомлення з кнопкою Зібрано:", e)
-                if isinstance(e, discord.errors.NotFound):
-                    print("⚠️ Повідомлення вже було видалено.")
+
 
 
             # Повідомлення в тому ж повідомленні
