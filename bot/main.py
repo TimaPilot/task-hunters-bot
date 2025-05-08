@@ -960,19 +960,6 @@ async def on_interaction(interaction: discord.Interaction):
                 view=OrderProgressView(user, cid, order_id, stage="new")
             )
 
-            # ⬇️ Зберігаємо message.id у колонку hunter_message_id
-            try:
-                conn = psycopg2.connect(os.getenv("DATABASE_URL"))
-                cursor = conn.cursor()
-                cursor.execute("""
-                    UPDATE orders SET hunter_accept_message_id = %s WHERE id = %s
-                """, (message.id, order_id))
-                conn.commit()
-                cursor.close()
-                conn.close()
-            except Exception as e:
-                print("❌ Не вдалося зберегти hunter_message_id:", e)
-
             # Отримуємо дані про бонуси
             conn = psycopg2.connect(os.getenv("DATABASE_URL"))
             cursor = conn.cursor()
@@ -1010,19 +997,6 @@ async def on_interaction(interaction: discord.Interaction):
                 content=message_content,
                 view=CancelOrderButtonView(order_id)
             )
-
-            # Зберігаємо message.id у hunter_message_id
-            try:
-                conn = psycopg2.connect(os.getenv("DATABASE_URL"))
-                cursor = conn.cursor()
-                cursor.execute("""
-                    UPDATE orders SET user_message_id = %s WHERE id = %s
-                """, (user_message.id, order_id))
-                conn.commit()
-                cursor.close()
-                conn.close()
-            except Exception as e:
-                print("❌ Не вдалося зберегти hunter_message_id (user):", e)
 
             
         elif cid.startswith("cancel_user_"):
@@ -1183,31 +1157,6 @@ async def on_interaction(interaction: discord.Interaction):
                 content="📦 Замовлення зібране! Замовнику надіслано повідомлення.",
                 view=OrderProgressView(customer, resource_key, order_id, stage="ready")
             )
-
-            # 🧠 interaction.message містить ID повідомлення, яке ми щойно оновили
-            # ми зберігаємо його повторно як hunter_message_id
-            try:
-                if interaction.message:
-                    msg_id = interaction.message.id
-                    hunters_channel = interaction.guild.get_channel(1356291670110507069)
-                    updated_msg = await hunters_channel.fetch_message(msg_id)
-
-                    conn = psycopg2.connect(os.getenv("DATABASE_URL"))
-                    cursor = conn.cursor()
-                    cursor.execute("""
-                        UPDATE orders SET hunter_ready_message_id = %s WHERE id = %s
-                    """, (updated_msg.id, order_id))
-                    conn.commit()
-                    cursor.close()
-                    conn.close()
-                    print(f"✅ Оновлено hunter_message_id на {updated_msg.id}")
-                else:
-                    print("⚠️ interaction.message не визначено — не збережено hunter_message_id")
-            except Exception as e:
-                print("❌ Не вдалося оновити hunter_message_id після 'Зібрано':", e)
-
-
-
 
         elif cid.startswith("finish_"):
             if interaction.user.bot:
