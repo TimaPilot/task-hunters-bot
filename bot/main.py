@@ -1019,11 +1019,25 @@ async def on_interaction(interaction: discord.Interaction):
             if discount_reminder:
                 message_content += f"\n{discount_reminder}"
 
-            await user_channel.send(
+            user_message = await user_channel.send(
                 content=message_content,
                 view=CancelOrderButtonView(order_id)
             )
 
+            # Зберігаємо message.id у hunter_message_id
+            try:
+                conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE orders SET hunter_message_id = %s WHERE id = %s
+                """, (user_message.id, order_id))
+                conn.commit()
+                cursor.close()
+                conn.close()
+            except Exception as e:
+                print("❌ Не вдалося зберегти hunter_message_id (user):", e)
+
+            
         elif cid.startswith("cancel_user_"):
             order_id = int(cid.replace("cancel_user_", ""))
             order = await get_order_by_id(order_id)
@@ -1078,6 +1092,17 @@ async def on_interaction(interaction: discord.Interaction):
                 content=f"🔔 Замовлення на **{resource}** прийнято мисливцем {hunter.mention}!",
                 view=OrderProgressView(customer, cid.split("_")[2], order_id, stage="accepted")
             )
+
+            # 🧽 Видалення повідомлення замовника
+            message_id = order.get("hunter_message_id")
+            if message_id:
+                try:
+                    customer_channel = interaction.guild.get_channel(1356283008478478546)  # зробити-замовлення
+                    msg = await customer_channel.fetch_message(message_id)
+                    await msg.delete()
+                except Exception as e:
+                    print("❌ Не вдалося видалити повідомлення замовника:", e)
+
 
             await mark_order_accepted(order_id, hunter.name)
             notify_channel = discord.utils.get(interaction.guild.text_channels, name="📝-зробити-замовлення")
