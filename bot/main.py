@@ -1179,11 +1179,27 @@ async def on_interaction(interaction: discord.Interaction):
             notify_channel = discord.utils.get(interaction.guild.text_channels, name="📝-зробити-замовлення")
             if notify_channel:
                 await notify_channel.send(
-                    f"{customer.mention}, Ваше замовлення було позначено як **виконане**. Дякуємо, що скористались нашими послугами! 🤎"
+                    f"{customer.mention}, Ваше замовлення було позначено як **виконане**. Дякуємо, що скористались нашими послугами! 🧡"
                 )
-                await notify_channel.send(
-                    "💬 Будемо раді бачити Ваш відгук в каналі <#1356362829099303160>!"
-                )
+
+                try:
+                    conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+                    cursor = conn.cursor()
+
+                    cursor.execute("""
+                        SELECT COUNT(*) FROM orders WHERE customer_id = %s AND status = 'Виконано'
+                    """, (str(customer_id),))
+                    completed_orders = cursor.fetchone()[0]
+
+                    cursor.close()
+                    conn.close()
+
+                    if completed_orders == 1:
+                        await notify_channel.send("💬 Будемо раді бачити Ваш відгук в каналі <#135362829899032160>!")
+
+                except Exception as e:
+                    print("❌ Помилка при перевірці кількості виконаних замовлень:", e)
+
 
 # ...............................................................
 #           [Блок: підтвердження реферала]
