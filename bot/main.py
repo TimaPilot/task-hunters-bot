@@ -1042,16 +1042,6 @@ async def on_interaction(interaction: discord.Interaction):
             order_id = int(cid.replace("cancel_user_", ""))
             order = await get_order_by_id(order_id)
             
-            # 🧽 Видалення hunter-повідомлення
-            message_id = order.get("user_message_id")
-            if message_id:
-                try:
-                    hunters_channel = interaction.guild.get_channel(1356291670110507069)
-                    msg = await hunters_channel.fetch_message(message_id)
-                    await msg.delete()
-                except Exception as e:
-                    print("❌ Не вдалося видалити повідомлення мисливців:", e)
-
             if order["customer_id"] != user.id:
                 await interaction.response.send_message("⛔ Ви не можете скасувати чуже замовлення!", ephemeral=True)
                 return
@@ -1092,16 +1082,6 @@ async def on_interaction(interaction: discord.Interaction):
                 content=f"🔔 Замовлення на **{resource}** прийнято мисливцем {hunter.mention}!",
                 view=OrderProgressView(customer, cid.split("_")[2], order_id, stage="accepted")
             )
-
-            # 🧽 Видалення повідомлення замовника
-            message_id = order.get("user_message_id")
-            if message_id:
-                try:
-                    customer_channel = interaction.guild.get_channel(1356283008478478546)  # зробити-замовлення
-                    msg = await customer_channel.fetch_message(message_id)
-                    await msg.delete()
-                except Exception as e:
-                    print("❌ Не вдалося видалити повідомлення замовника:", e)
 
 
             await mark_order_accepted(order_id, hunter.name)
@@ -1153,16 +1133,6 @@ async def on_interaction(interaction: discord.Interaction):
 
             await mark_order_collected(order_id)
 
-            # 🧹 Видаляємо попереднє повідомлення мисливців
-            msg_id = order.get("hunter_accept_message_id")
-            if msg_id:
-                try:
-                    hunters_channel = interaction.guild.get_channel(1356291670110507069)  # ✅-виконання-замовлень
-                    old_msg = await hunters_channel.fetch_message(msg_id)
-                    await old_msg.delete()
-                except Exception as e:
-                    print("❌ Не вдалося видалити повідомлення з кнопкою Прийнято:", e)
-
             # 💸 Перевірка наявності знижки
             discount_notice = await get_discount_notice_text(order_id)
             if discount_notice:
@@ -1185,7 +1155,6 @@ async def on_interaction(interaction: discord.Interaction):
                         f"{customer.mention}, 📦 Ваш **{resource}** вже в рюкзаку мисливця! 📍З Вами зараз зв’яжуться для узгодження місця зустрічі"
                     )
 
-            # 🛠️ Оновлюємо повідомлення з кнопкою
             # 🛠️ Оновлюємо повідомлення з кнопкою
             await interaction.response.edit_message(
                 content="📦 Замовлення зібране! Замовнику надіслано повідомлення.",
@@ -1228,20 +1197,6 @@ async def on_interaction(interaction: discord.Interaction):
 
             # Оновлюємо статус
             await update_order_status_by_id(order_id, "Виконано", hunter_name=user.name)
-
-            # 🧹 Видаляємо повідомлення з кнопкою "📦 Зібрано"
-            msg_id = order.get("hunter_ready_message_id")
-            if msg_id:
-                try:
-                    hunters_channel = interaction.guild.get_channel(1356291670110507069)
-                    old_msg = await hunters_channel.fetch_message(msg_id)
-                    await old_msg.delete()
-                except discord.errors.NotFound:
-                    print("⚠️ Повідомлення вже було видалено.")
-                except Exception as e:
-                    print("❌ Не вдалося видалити повідомлення з кнопкою Зібрано:", e)
-
-
 
             # Повідомлення в тому ж повідомленні
             await interaction.response.edit_message(
