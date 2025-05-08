@@ -1044,6 +1044,7 @@ async def on_interaction(interaction: discord.Interaction):
         elif cid.startswith("accept_order_"):
             order_id = int(cid.replace("accept_order_", ""))
             order = await get_order_by_id(order_id)
+
             # 🧹 Видалення повідомлення користувача з кнопкою ❌
             msg_id = order.get("user_message_id")
             if msg_id:
@@ -1054,6 +1055,7 @@ async def on_interaction(interaction: discord.Interaction):
                     print(f"🧹 Видалено user_message_id: {msg_id}")
                 except Exception as e:
                     print(f"⚠️ Не вдалося видалити повідомлення замовника: {e}")
+                    
             resource = order["details"]
             hunter = user
 
@@ -1126,6 +1128,7 @@ async def on_interaction(interaction: discord.Interaction):
         elif cid.startswith("ready_"):
             order_id = int(cid.replace("ready_", ""))
             order = await get_order_by_id(order_id)
+
             # 🧹 Видалення повідомлення користувачу з ETA (user_accept_message_id)
             msg_id = order.get("user_accept_message_id")
             if msg_id:
@@ -1166,6 +1169,21 @@ async def on_interaction(interaction: discord.Interaction):
                         f"{customer.mention}, 📦 Ваш **{resource}** вже в рюкзаку мисливця! 📍З Вами зараз зв’яжуться для узгодження місця зустрічі"
                     )
 
+            # 💾 Зберігаємо user_ready_message_id
+            try:
+                conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+                cursor = conn.cursor()
+                cursor.execute(
+                    "UPDATE orders SET user_ready_message_id = %s WHERE id = %s",
+                    (msg.id, order_id)
+                )
+                conn.commit()
+                cursor.close()
+                conn.close()
+                print(f"💾 Збережено user_ready_message_id: {msg.id}")
+            except Exception as e:
+                print(f"❌ Не вдалося зберегти user_ready_message_id: {e}")
+
             # 🛠️ Оновлюємо повідомлення з кнопкою
             await interaction.response.edit_message(
                 content="📦 Замовлення зібране! Замовнику надіслано повідомлення.",
@@ -1178,6 +1196,18 @@ async def on_interaction(interaction: discord.Interaction):
 
             order_id = int(cid.replace("finish_", ""))
             order = await get_order_by_id(order_id)
+
+            # 🧹 Видалення повідомлення з кар'єром
+            msg_id = order.get("user_ready_message_id")
+            if msg_id:
+                try:
+                    user_channel = interaction.guild.get_channel(1356283008478478546)  # #зробити-замовлення
+                    msg = await user_channel.fetch_message(msg_id)
+                    await msg.delete()
+                    print(f"🧹 Видалено user_ready_message_id: {msg_id}")
+                except Exception as e:
+                    print(f"⚠️ Не вдалося видалити повідомлення з кар'єром: {e}")
+
             customer_id = order["customer_id"]
             customer = await interaction.guild.fetch_member(customer_id)
 
