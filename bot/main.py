@@ -1153,6 +1153,16 @@ async def on_interaction(interaction: discord.Interaction):
 
             await mark_order_collected(order_id)
 
+            # 🧹 Видаляємо попереднє повідомлення мисливців
+            msg_id = order.get("hunter_message_id")
+            if msg_id:
+                try:
+                    hunters_channel = interaction.guild.get_channel(1356291670110507069)  # ✅-виконання-замовлень
+                    old_msg = await hunters_channel.fetch_message(msg_id)
+                    await old_msg.delete()
+                except Exception as e:
+                    print("❌ Не вдалося видалити повідомлення з кнопкою Прийнято:", e)
+
             # 💸 Перевірка наявності знижки
             discount_notice = await get_discount_notice_text(order_id)
             if discount_notice:
@@ -1193,6 +1203,17 @@ async def on_interaction(interaction: discord.Interaction):
 
             # Оновлюємо статус
             await update_order_status_by_id(order_id, "Виконано", hunter_name=user.name)
+
+            # 🧹 Видаляємо повідомлення з кнопкою "📦 Зібрано"
+            msg_id = order.get("hunter_message_id")
+            if msg_id:
+                try:
+                    hunters_channel = interaction.guild.get_channel(1356291670110507069)
+                    old_msg = await hunters_channel.fetch_message(msg_id)
+                    await old_msg.delete()
+                except Exception as e:
+                    print("❌ Не вдалося видалити повідомлення з кнопкою Зібрано:", e)
+
 
             # Повідомлення в тому ж повідомленні
             await interaction.response.edit_message(
