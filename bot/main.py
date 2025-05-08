@@ -998,6 +998,20 @@ async def on_interaction(interaction: discord.Interaction):
                 view=CancelOrderButtonView(order_id)
             )
 
+            # 💾 Зберігаємо user_message.id в orders.user_message_id
+            try:
+                conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+                cursor = conn.cursor()
+                cursor.execute(
+                    "UPDATE orders SET user_message_id = %s WHERE id = %s",
+                    (user_message.id, order_id)
+                )
+                conn.commit()
+                cursor.close()
+                conn.close()
+                print(f"💾 Збережено user_message_id: {user_message.id}")
+            except Exception as e:
+                print(f"❌ Не вдалося зберегти user_message_id: {e}")
             
         elif cid.startswith("cancel_user_"):
             order_id = int(cid.replace("cancel_user_", ""))
