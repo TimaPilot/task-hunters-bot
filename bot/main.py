@@ -1195,7 +1195,7 @@ async def on_interaction(interaction: discord.Interaction):
                     conn.close()
 
                     if completed_orders == 1:
-                        await notify_channel.send("💬 Будемо раді бачити Ваш відгук в каналі <#135362829899032160>!")
+                        await notify_channel.send("💬 Будемо раді бачити Ваш відгук в каналі <1356362829099303160>!")
 
                 except Exception as e:
                     print("❌ Помилка при перевірці кількості виконаних замовлень:", e)
