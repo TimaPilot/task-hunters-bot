@@ -1197,9 +1197,14 @@ async def on_interaction(interaction: discord.Interaction):
                     feedback_channel = interaction.guild.get_channel(1356362829099303160)  # ID твого каналу #🗨️-відгуки
                     has_feedback = False
 
+                    print(f"[DEBUG] customer_id: {customer_id} (type: {type(customer_id)})")
+                    print(f"[DEBUG] completed_orders: {completed_orders}")
+
                     if feedback_channel:
-                        async for message in feedback_channel.history(limit=100):
+                        async for message in feedback_channel.history(limit=50):
+                            print(f"[DEBUG] message.author.id: {message.author.id} (type: {type(message.author.id)}) | content: {message.content[:30]}")
                             if message.author.id == int(customer_id):
+                                print(f"[DEBUG] Виявлено існуючий відгук від {customer_id}")
                                 has_feedback = True
                                 break
 
