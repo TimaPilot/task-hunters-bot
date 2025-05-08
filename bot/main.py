@@ -1090,6 +1090,21 @@ async def on_interaction(interaction: discord.Interaction):
                 await notify_channel.send(
                     f"{customer.mention}, Ваше замовлення на **{resource}** прийняв {hunter.mention}! 🕒 Орієнтовний час виконання — {eta}!"
                 )
+
+                # 💾 Зберігаємо user_accept_message_id
+                try:
+                    conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        "UPDATE orders SET user_accept_message_id = %s WHERE id = %s",
+                        (msg.id, order_id)
+                    )
+                    conn.commit()
+                    cursor.close()
+                    conn.close()
+                except Exception as e:
+                    print("❌ Не вдалося зберегти user_accept_message_id:", e)
+                    
         elif cid.startswith("cancel_"):
             order_id = int(cid.replace("cancel_", ""))
             order = await get_order_by_id(order_id)
@@ -1123,16 +1138,16 @@ async def on_interaction(interaction: discord.Interaction):
         elif cid.startswith("ready_"):
             order_id = int(cid.replace("ready_", ""))
             order = await get_order_by_id(order_id)
-            # 🧹 Видалення повідомлення з кнопкою "Прийнято"
-            msg_id = order.get("hunter_accept_message_id")
+            # 🧹 Видалення повідомлення користувачу з ETA (user_accept_message_id)
+            msg_id = order.get("user_accept_message_id")
             if msg_id:
                 try:
-                    hunter_channel = interaction.guild.get_channel(1356291670110507069)  # #виконання-замовлень
-                    msg = await hunter_channel.fetch_message(msg_id)
+                    user_channel = interaction.guild.get_channel(1356283008478478546)  # #зробити-замовлення
+                    msg = await user_channel.fetch_message(msg_id)
                     await msg.delete()
-                    print(f"🧹 Видалено hunter_accept_message_id: {msg_id}")
+                    print(f"🧹 Видалено user_accept_message_id: {msg_id}")
                 except Exception as e:
-                    print(f"⚠️ Не вдалося видалити повідомлення з кнопкою Прийнято: {e}")
+                    print(f"⚠️ Не вдалося видалити повідомлення з ETA: {e}")
 
             customer_id = order["customer_id"]
             customer = await interaction.guild.fetch_member(customer_id)
