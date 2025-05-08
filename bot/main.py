@@ -1061,9 +1061,9 @@ async def on_interaction(interaction: discord.Interaction):
                 resource_key = resource_reverse.get(resource, "unknown")
                 eta = estimated_times.get(resource_key, "20–30 хв")
 
-                await notify_channel.send(
-                    f"{customer.mention}, Ваше замовлення на **{resource}** прийняв {hunter.mention}! 🕒 Орієнтовний час виконання — {eta}!"
-                )
+                msg = await notify_channel.send(
+    f"{customer.mention}, Ваше замовлення на **{resource}** прийняв {hunter.mention}! 🕓 Орієнтовний час виконання — ({eta})!"
+)
 
                 # 💾 Зберігаємо user_accept_message_id
                 try:
