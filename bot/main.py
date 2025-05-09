@@ -63,7 +63,7 @@ async def on_ready():
 
     bot.add_view(ResourceButtonsView())
     bot.add_view(CabinetButtonView())
-    
+
     # 🧩 Перевірка і надсилання панелі, якщо ще немає
     channel = bot.get_channel(1361872158435053759)  # 📂-особистий-кабінет
     if channel:
@@ -1447,3 +1447,4 @@ load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 bot.run(TOKEN)
 
+#das
