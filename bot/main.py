@@ -1055,7 +1055,7 @@ async def on_interaction(interaction: discord.Interaction):
                     print(f"🧹 Видалено user_message_id: {msg_id}")
                 except Exception as e:
                     print(f"⚠️ Не вдалося видалити повідомлення замовника: {e}")
-                    
+
             resource = order["details"]
             hunter = user
 
@@ -1161,11 +1161,11 @@ async def on_interaction(interaction: discord.Interaction):
             # 📨 Надсилаємо повідомлення замовнику
             if notify_channel:
                 if "камінь" in resource.lower():
-                    await notify_channel.send(
+                     msg = await notify_channel.send(
                         f"{customer.mention}, 🪨 Ваш **камінь** готовий! Мисливець очікує Вас на кар'єрі.\n💡 Звільніть інвентар заздалегідь — буде важко!"
                     )
                 else:
-                    await notify_channel.send(
+                     msg = await notify_channel.send(
                         f"{customer.mention}, 📦 Ваш **{resource}** вже в рюкзаку мисливця! 📍З Вами зараз зв’яжуться для узгодження місця зустрічі"
                     )
 
