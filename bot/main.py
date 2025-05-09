@@ -63,7 +63,7 @@ async def on_ready():
 
     bot.add_view(ResourceButtonsView())
     bot.add_view(CabinetButtonView())
-
+    
     # 🧩 Перевірка і надсилання панелі, якщо ще немає
     channel = bot.get_channel(1361872158435053759)  # 📂-особистий-кабінет
     if channel:
@@ -748,7 +748,7 @@ class CabinetButtonView(View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @discord.ui.button(label="📂 Зайти в особистий кабінет", style=discord.ButtonStyle.primary)
+    @discord.ui.button(label="📂 Зайти в особистий кабінет", style=discord.ButtonStyle.primary, custom_id="open_cabinet")
     async def open_cabinet(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer(thinking=True, ephemeral=True)
         user_id = interaction.user.id
@@ -801,7 +801,7 @@ class CabinetButtonView(View):
 # ...............................................................
 #           [Блок: Вигляд кнопки детальна статистика]
 # ...............................................................
-    @discord.ui.button(label="🔗 Реферальна система", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="🔗 Реферальна система", style=discord.ButtonStyle.secondary, custom_id="referral_system")
     async def referral_system(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer(thinking=True, ephemeral=True)
 
@@ -822,7 +822,7 @@ class CabinetButtonView(View):
 # ...............................................................
 #           [Блок: Вигляд кнопки детальна статистика]
 # ...............................................................
-    @discord.ui.button(label="📊 Детальна статистика", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="📊 Детальна статистика", style=discord.ButtonStyle.secondary, custom_id="detailed_stats")
     async def detailed_stats(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer(thinking=True, ephemeral=True)
         import os
@@ -1447,4 +1447,3 @@ load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 bot.run(TOKEN)
 
-#das
