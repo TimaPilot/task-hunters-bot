@@ -1053,6 +1053,7 @@ async def on_interaction(interaction: discord.Interaction):
             resource = order["details"]
             customer = interaction.user
 
+            await interaction.response.defer()
             msg = await interaction.followup.send(
                 content=f"{user.mention}, ❌ Ви скасували своє замовлення на **{resource}**.",
             )
