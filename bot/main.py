@@ -1053,12 +1053,23 @@ async def on_interaction(interaction: discord.Interaction):
             resource = order["details"]
             customer = interaction.user
 
+            # 🧹 Видалення повідомлення замовника з кнопкою скасування
+            msg_id = order.get("user_message_id")
+            if msg_id:
+                try:
+                    user_channel = interaction.guild.get_channel(1356283008478478546)  # #зробити-замовлення
+                    old_msg = await user_channel.fetch_message(msg_id)
+                    await old_msg.delete()
+                    print(f"🧹 Видалено user_message_id: {msg_id}")
+                except Exception as e:
+                    print(f"⚠️ Не вдалося видалити повідомлення замовника: {e}")
+
+            await interaction.response.defer()
+
             await interaction.response.defer()
             msg = await interaction.followup.send(
                 content=f"{user.mention}, ❌ Ви скасували своє замовлення на **{resource}**.",
             )
-
-
 
             # 🕓 Видалення повідомлення про скасування через 5 хвилин
             async def delete_cancel_message():
@@ -1179,16 +1190,6 @@ async def on_interaction(interaction: discord.Interaction):
                 view=None
             )
 
-            # 🧹 Видалення повідомлення замовника з кнопкою скасування
-            msg_id = order.get("user_message_id")
-            if msg_id:
-                try:
-                    user_channel = interaction.guild.get_channel(1356283008478478546)  # #зробити-замовлення
-                    old_msg = await user_channel.fetch_message(msg_id)
-                    await old_msg.delete()
-                    print(f"🧹 Видалено user_message_id: {msg_id}")
-                except Exception as e:
-                    print(f"⚠️ Не вдалося видалити повідомлення замовника: {e}")
 
         elif cid.startswith("ready_"):
             order_id = int(cid.replace("ready_", ""))
