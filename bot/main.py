@@ -1053,10 +1053,12 @@ async def on_interaction(interaction: discord.Interaction):
             resource = order["details"]
             customer = interaction.user
 
-            msg = await interaction.response.edit_message(
+            await interaction.response.defer(ephemeral=True)  # щоб не було помилки про вже відповіли
+            await interaction.followup.send(
                 content=f"{user.mention}, ❌ Ви скасували своє замовлення на **{resource}**.",
-                view=None
+                ephemeral=True
             )
+
 
             # 🕓 Видалення повідомлення про скасування через 5 хвилин
             async def delete_cancel_message():
