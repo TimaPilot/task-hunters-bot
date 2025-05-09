@@ -1065,8 +1065,8 @@ async def on_interaction(interaction: discord.Interaction):
                     print(f"⚠️ Не вдалося видалити повідомлення замовника: {e}")
 
             await interaction.response.defer()
-            msg = await interaction.followup.send(
-                content=f"{user.mention}, ❌ Ви скасували своє замовлення на **{resource}**.",
+            msg = await interaction.channel.send(
+            content=f"{user.mention}, ❌ Ви скасували своє замовлення на **{resource}**."
             )
 
             # 🕓 Видалення повідомлення про скасування через 5 хвилин
