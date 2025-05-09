@@ -1223,9 +1223,20 @@ async def on_interaction(interaction: discord.Interaction):
             # Надішлемо сповіщення в загальний канал
             notify_channel = discord.utils.get(interaction.guild.text_channels, name="📝-зробити-замовлення")
             if notify_channel:
-                await notify_channel.send(
+                msg = await notify_channel.send(
                     f"{customer.mention}, Ваше замовлення було позначено як **виконане**. Дякуємо, що скористались нашими послугами! 🤎"
                 )
+
+                # ⏳ Видаляємо через 5 хвилин
+                async def delayed_delete():
+                    await asyncio.sleep(300)  # 300 секунд = 5 хв
+                    try:
+                        await msg.delete()
+                        print(f"🧽 Повідомлення про виконання видалено: {msg.id}")
+                    except Exception as e:
+                        print(f"⚠️ Не вдалося видалити повідомлення про виконання: {e}")
+
+                asyncio.create_task(delayed_delete())
 
                 try:
                     conn = psycopg2.connect(os.getenv("DATABASE_URL"))
@@ -1240,7 +1251,20 @@ async def on_interaction(interaction: discord.Interaction):
                     conn.close()
 
                     if completed_orders == 1:
-                        await notify_channel.send("💬 Будемо раді бачити Ваш відгук в каналі <#1353636282990932160>!")
+                        msg = await notify_channel.send(
+                        f"💬 Будемо раді бачити Ваш відгук в каналі <#135636282990932160>!"
+                    )
+
+                    # ⏳ Видаляємо через 5 хв
+                    async def delete_review_prompt():
+                        await asyncio.sleep(300)
+                        try:
+                            await msg.delete()
+                            print(f"🧽 Повідомлення про відгук видалено: {msg.id}")
+                        except Exception as e:
+                            print(f"⚠️ Не вдалося видалити повідомлення про відгук: {e}")
+
+                    asyncio.create_task(delete_review_prompt())
 
                 except Exception as e:
                     print("❌ Помилка при перевірці кількості виконаних замовлень:", e)
