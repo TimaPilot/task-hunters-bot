@@ -1446,6 +1446,3 @@ async def on_interaction(interaction: discord.Interaction):
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 bot.run(TOKEN)
-
-
-#fjdks
