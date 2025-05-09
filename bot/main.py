@@ -971,6 +971,17 @@ async def on_interaction(interaction: discord.Interaction):
                 content,
                 view=OrderProgressView(user, cid, order_id, stage="new")
             )
+                # Зберігаємо ID повідомлення в БД
+                conn_save = psycopg2.connect(os.getenv("DATABASE_URL"))
+                cursor_save = conn_save.cursor()
+                cursor_save.execute("""
+                    UPDATE orders
+                    SET hunter_accept_message_id = %s
+                    WHERE id = %s
+                """, (message.id, order_id))
+                conn_save.commit()
+                cursor_save.close()
+                conn_save.close()
 
             # Отримуємо дані про бонуси
             conn = psycopg2.connect(os.getenv("DATABASE_URL"))
@@ -1042,10 +1053,39 @@ async def on_interaction(interaction: discord.Interaction):
             resource = order["details"]
             customer = interaction.user
 
-            await interaction.response.edit_message(
+            msg = await interaction.response.edit_message(
                 content=f"{user.mention}, ❌ Ви скасували своє замовлення на **{resource}**.",
                 view=None
             )
+
+            # 🕓 Видалення повідомлення про скасування через 5 хвилин
+            async def delete_cancel_message():
+                await asyncio.sleep(300)
+                try:
+                    await msg.delete()
+                    print(f"🧹 Видалено повідомлення про скасування: {msg.id}")
+                except Exception as e:
+                    print(f"⚠️ Не вдалося видалити повідомлення про скасування: {e}")
+
+            asyncio.create_task(delete_cancel_message())
+
+            # Видаляємо повідомлення про нове замовлення з "виконання-замовлень"
+            try:
+                conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+                cursor = conn.cursor()
+                cursor.execute("SELECT hunter_accept_message_id FROM orders WHERE id = %s", (order_id,))
+                result = cursor.fetchone()
+                cursor.close()
+                conn.close()
+
+                if result and result[0]:
+                    hunters_channel_obj = interaction.guild.get_channel(1356291670110507069)
+                    if hunters_channel_obj:
+                        old_message = await hunters_channel_obj.fetch_message(result[0])
+                        await old_message.delete()
+            except Exception as e:
+                print(f"⚠️ Не вдалося видалити повідомлення про замовлення: {e}")
+
 
             hunters_channel = interaction.guild.get_channel(1356291670110507069)
             if hunters_channel:
@@ -1284,10 +1324,6 @@ async def on_interaction(interaction: discord.Interaction):
 # ...............................................................
 #           [Блок: підтвердження реферала]
 # ...............................................................                
-# ..........................
-# [Блок: підтвердження реферала]
-# ..........................
-
             try:
                 conn = psycopg2.connect(os.getenv("DATABASE_URL"))
                 cursor = conn.cursor()
@@ -1355,40 +1391,6 @@ async def on_interaction(interaction: discord.Interaction):
 
             except Exception as e:
                 print("❌ Помилка при підтвердженні реферала:", e)
-
-
-# ...............................................................
-#           [Блок: створення реферального посилання]
-# ............................................................... 
-        elif cid == "get_ref_link":
-            guild = interaction.guild
-            user = interaction.user
-
-            channel = guild.system_channel or guild.text_channels[0]
-            new_invite = await channel.create_invite(max_uses=0, unique=True, reason=f"Реферальне посилання для {user.name}")
-            invite_url = new_invite.url
-
-            # Зберігаємо invite.code + inviter_id
-            try:
-                conn = psycopg2.connect(os.getenv("DATABASE_URL"))
-                cursor = conn.cursor()
-                cursor.execute("""
-                    INSERT INTO invite_codes (code, inviter_id)
-                    VALUES (%s, %s)
-                    ON CONFLICT (code) DO NOTHING
-                """, (new_invite.code, user.id))
-                conn.commit()
-                cursor.close()
-                conn.close()
-                print(f"✅ Збережено інвайт {new_invite.code} від {user.id}")
-            except Exception as e:
-                print("❌ Не вдалося зберегти invite code:", e)
-
-            await interaction.response.send_message(
-                f"🔗 Ось твоє реферальне посилання:\n{invite_url}\n"
-                "Передай його друзям! Бонус буде нараховано після їхнього першого замовлення.",
-                ephemeral=True
-            )
 
 # ...............................................................
 #           [Блок: кнопка "Мої реферали"]
