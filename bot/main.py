@@ -1159,17 +1159,6 @@ async def on_interaction(interaction: discord.Interaction):
 
             # оновлюємо статус
             await update_order_status_by_id(order_id, "Скасовано", hunter_name=None)
-            # 🧹 Видалення повідомлення замовника з кнопкою скасування
-            msg_id = order.get("user_message_id")
-            if msg_id:
-                try:
-                    user_channel = interaction.guild.get_channel(1356283008478478546)  # #зробити-замовлення
-                    old_msg = await user_channel.fetch_message(msg_id)
-                    await old_msg.delete()
-                    print(f"🧹 Видалено user_message_id: {msg_id}")
-                except Exception as e:
-                    print(f"⚠️ Не вдалося видалити повідомлення замовника: {e}")
-
 
             customer = interaction.user
             resource = order["details"]
@@ -1189,6 +1178,17 @@ async def on_interaction(interaction: discord.Interaction):
                 content=f"❌ Замовлення на **{resource}** було скасовано користувачем.",
                 view=None
             )
+
+            # 🧹 Видалення повідомлення замовника з кнопкою скасування
+            msg_id = order.get("user_message_id")
+            if msg_id:
+                try:
+                    user_channel = interaction.guild.get_channel(1356283008478478546)  # #зробити-замовлення
+                    old_msg = await user_channel.fetch_message(msg_id)
+                    await old_msg.delete()
+                    print(f"🧹 Видалено user_message_id: {msg_id}")
+                except Exception as e:
+                    print(f"⚠️ Не вдалося видалити повідомлення замовника: {e}")
 
         elif cid.startswith("ready_"):
             order_id = int(cid.replace("ready_", ""))
