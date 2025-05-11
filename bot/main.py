@@ -9,7 +9,6 @@ import asyncio
 import os
 import datetime
 import psycopg2
-import urllib.parse as urlparse
 from db_logger import (
     save_order_to_db,
     update_order_status_by_id,
@@ -377,8 +376,9 @@ async def сповістити_знижку(ctx):
     conn = psycopg2.connect(os.getenv("DATABASE_URL"))
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT user_id FROM user_bonuses
-        WHERE permanent_discount = 10 AND used_discount_10 = false
+        SELECT user_id, permanent_discount, used_discount_10, free_orders
+        FROM user_bonuses
+        WHERE (permanent_discount = 10 AND used_discount_10 = false) OR free_orders > 0
     """)
     rows = cursor.fetchall()
     cursor.close()
@@ -388,28 +388,39 @@ async def сповістити_знижку(ctx):
         await ctx.send("ℹ️ Немає користувачів зі знижкою.")
         return
 
-    for (user_id,) in rows:
+    for user_id, permanent_discount, used_discount_10, free_orders in rows:
         try:
             member = await ctx.guild.fetch_member(user_id)
 
-            embed = discord.Embed(
-                title="🎁 У вас є знижка 10%!",
-                description=(
-                    "Дякуємо, що запросили друга! Ви отримали **одноразову знижку 10%** на замовлення.\n"
-                    "Вона автоматично активується після завершення найближчого виконаного замовлення.\n\n"
-                    "Приємного полювання! 🔥"
-                ),
-                color=0x00ff99
-            )
+            descriptions = []
+            if permanent_discount == 10 and not used_discount_10:
+                descriptions.append(
+                    "🎯 Ви отримали **одноразову знижку 10%** на замовлення.\n"
+                    "Вона активується після завершення найближчого виконаного замовлення."
+                )
+            if free_orders > 0:
+                word = "замовлення" if free_orders == 1 else "замовлення(нь)"
+                descriptions.append(
+                    f"🎁 У вас є **{free_orders} безкоштовне(і) {word}**! Воно буде застосовано автоматично."
+                )
 
-            await channel.send(
-                content=f"{member.mention}",
-                embed=embed
-            )
+            if descriptions:
+                embed = discord.Embed(
+                    title="🎉 Ви отримали бонус!",
+                    description="\n\n".join(descriptions) + "\n\n🔥 Приємного полювання!",
+                    color=0x00ff99
+                )
+
+                await channel.send(
+                    content=f"{member.mention}",
+                    embed=embed
+                )
 
             await asyncio.sleep(1)
+
         except Exception as e:
             print(f"❌ Не вдалося надіслати повідомлення для {user_id}: {e}")
+
 
     await ctx.send("✅ Повідомлення надіслані всім користувачам зі знижкою.")
 
@@ -1193,6 +1204,11 @@ async def on_interaction(interaction: discord.Interaction):
             order_id = int(cid.replace("ready_", ""))
             order = await get_order_by_id(order_id)
 
+#=========== Захст кнопок від взаємодії іншими ===========
+            if interaction.user.name != order["hunter"]:
+                await interaction.response.send_message("⛔ Ви не є виконавцем цього замовлення!", ephemeral=True)
+                return
+
             # 🧹 Видалення повідомлення користувачу з ETA (user_accept_message_id)
             msg_id = order.get("user_accept_message_id")
             if msg_id:
@@ -1250,7 +1266,10 @@ async def on_interaction(interaction: discord.Interaction):
 
             # 🛠️ Оновлюємо повідомлення з кнопкою
             await interaction.response.edit_message(
-                content="📦 Замовлення зібране! Замовнику надіслано повідомлення.",
+                content=(
+                    f"📦 Замовлення **{customer.mention}** на {resource} зібране!\n"
+                    f"🧭 Виконавець: {interaction.user.mention}"
+                ),
                 view=OrderProgressView(customer, resource_key, order_id, stage="ready")
             )
 
@@ -1260,6 +1279,11 @@ async def on_interaction(interaction: discord.Interaction):
 
             order_id = int(cid.replace("finish_", ""))
             order = await get_order_by_id(order_id)
+
+#=========== Захст кнопок від взаємодії іншими ===========
+            if interaction.user.name != order["hunter"]:
+                await interaction.response.send_message("⛔ Ви не є виконавцем цього замовлення!", ephemeral=True)
+                return
 
             # 🧹 Видалення повідомлення з кар'єром
             msg_id = order.get("user_ready_message_id")
