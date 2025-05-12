@@ -1294,6 +1294,13 @@ async def on_interaction(interaction: discord.Interaction):
                         f"{customer.mention}, 📦 Ваш **{resource}** вже в рюкзаку мисливця! 📍З Вами зараз зв’яжуться для узгодження місця зустрічі"
                     )
 
+                # Додаємо знижку
+                discount_notice = await get_discount_notice_text(order_id)
+                if discount_notice:
+                    message_text += f"\n\n💸 {discount_notice}"
+
+                msg = await notify_channel.send(message_text)
+
             # 💾 Зберігаємо user_ready_message_id
             try:
                 conn = psycopg2.connect(os.getenv("DATABASE_URL"))
