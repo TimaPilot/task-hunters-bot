@@ -1283,22 +1283,37 @@ async def on_interaction(interaction: discord.Interaction):
                 name="📝-зробити-замовлення"
             )
 
-            # 📨 Надсилаємо повідомлення замовнику
             if notify_channel:
-                if "камінь" in resource.lower():
-                     msg = await notify_channel.send(
-                        f"{customer.mention}, 🪨 Ваш **камінь** готовий! Мисливець очікує Вас на кар'єрі.\n💡 Звільніть інвентар заздалегідь — буде важко!"
-                    )
-                
-                else:
-                     msg = await notify_channel.send(
-                        f"{customer.mention}, 📦 Ваш **{resource}** вже в рюкзаку мисливця! 📍З Вами зараз зв’яжуться для узгодження місця зустрічі"
-                    )
-                     
                 discount_notice = await get_discount_notice_text(order_id)
+
+                if "камінь" in resource.lower():
+                    message_text = (
+                        f"{customer.mention}, 🪨 Ваш **камінь** готовий! "
+                        "Мисливець очікує Вас на кар'єрі.\n"
+                        "💡 Звільніть інвентар заздалегідь — буде важко!"
+                    )
+                else:
+                    message_text = (
+                        f"{customer.mention}, 📦 Ваш **{resource}** вже в рюкзаку мисливця!\n"
+                        "📍 З Вами зараз звʼяжуться для узгодження місця зустрічі"
+                    )
+
                 if discount_notice:
                     message_text += f"\n\n💸 {discount_notice}"
+
+                # ⬇️ Надсилаємо та зберігаємо повідомлення
                 msg = await notify_channel.send(message_text)
+
+                # ⏳ Створюємо таймер на видалення
+                async def delete_ready_msg():
+                    await asyncio.sleep(300)
+                    try:
+                        await msg.delete()
+                    except Exception as e:
+                        print(f"⚠️ Не вдалося видалити повідомлення: {e}")
+
+                asyncio.create_task(delete_ready_msg())
+
 
             # 💾 Зберігаємо user_ready_message_id
             try:
