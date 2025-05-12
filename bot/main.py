@@ -1299,20 +1299,15 @@ async def on_interaction(interaction: discord.Interaction):
                     )
 
                 if discount_notice:
-                    message_text += f"\n\n💸 {discount_notice}"
-
+                    # Адаптуємо стиль для замовника
+                    discount_notice = (
+                        f"💸 Нагадування! На це замовлення діє знижка **{discount_notice.strip().split()[-1]}**.\n"
+                        f"Обов’язково скажіть про це мисливцю під час передачі ресурсу 😉"
+                    )
+                    message_text += f"\n\n{discount_notice}"
+                    
                 # ⬇️ Надсилаємо та зберігаємо повідомлення
                 msg = await notify_channel.send(message_text)
-
-                # ⏳ Створюємо таймер на видалення
-                async def delete_ready_msg():
-                    await asyncio.sleep(300)
-                    try:
-                        await msg.delete()
-                    except Exception as e:
-                        print(f"⚠️ Не вдалося видалити повідомлення: {e}")
-
-                asyncio.create_task(delete_ready_msg())
 
 
             # 💾 Зберігаємо user_ready_message_id
