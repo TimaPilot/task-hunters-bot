@@ -810,7 +810,7 @@ class CabinetButtonView(View):
         await interaction.followup.send(embed=embed, ephemeral=True)
 
 # ...............................................................
-#           [Блок: Вигляд кнопки детальна статистика]
+#           [Блок: Вигляд кнопки реферальна система]
 # ...............................................................
     @discord.ui.button(label="🔗 Реферальна система", style=discord.ButtonStyle.secondary, custom_id="referral_system")
     async def referral_system(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -1140,7 +1140,11 @@ async def on_interaction(interaction: discord.Interaction):
                 return
 
             await interaction.response.edit_message(
-                content=f"🔔 Замовлення на **{resource}** прийнято мисливцем {hunter.mention}!",
+                content=(
+                    f"🔔 Замовлення на **{resource}** прийнято!\n"
+                    f"👤 Замовник: {customer.mention}\n"
+                    f"🧭 Мисливець: {hunter.mention}"
+                ),
                 view=OrderProgressView(customer, cid.split("_")[2], order_id, stage="accepted")
             )
 
