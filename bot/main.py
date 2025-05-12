@@ -29,6 +29,9 @@ intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+# =========================================================
+#                  МАПИ І ЧАСИ ДЛЯ РЕСУРСІВ
+# =========================================================
  # 🌍 Reverse mapping: для зручності визначення ключа ресурсу
 resource_reverse = {
 "🪨 Камінь": "stone",
@@ -49,6 +52,11 @@ estimated_times = {
 
 invite_cache = {}
 
+# =========================================================
+#               БЛОК: ПОДІЇ on_ready та on_member_join
+# =========================================================
+# on_ready — ініціалізація бота та відправка панелі
+# on_member_join — видача ролі і привітання новачка
 @bot.event
 async def on_ready():
     await init_db()
@@ -194,9 +202,9 @@ async def add_referral(ctx, inviter_id: int, invited_id: int):
         print("❌ Помилка при додаванні реферала:", e)
         await ctx.send("❌ Помилка при додаванні реферала.")
 
-# ==============================================
+# =======================================================
 #           [Блок: Статистика рефералів (Адмін)]
-# ==============================================
+# =======================================================
 @bot.command(name="рефстатистика")
 @commands.is_owner()
 async def referral_stats(ctx):
@@ -361,9 +369,9 @@ async def cabinet_by_id(ctx, user_id: int):
 
     await ctx.send(embed=embed)
 
-# ==============================================
+# ========================================================
 #           [Блок: Розсилка знижок за рефералів]
-# ==============================================
+# ========================================================
 @bot.command()
 @commands.is_owner()  # лише для тебе
 async def сповістити_знижку(ctx):
@@ -459,9 +467,9 @@ async def my_stats(ctx):
         await ctx.send(f"❌ Помилка при отриманні статистики: {e}")
 
 
-# ==============================================
-#           [Блок: Особистий кабінет]
-# ==============================================
+# =================================================
+#           [Блок: команда: Особистий кабінет]
+# =================================================
 @bot.command(name="панель")
 async def show_panel(ctx):
     await ctx.send("Натисни кнопку нижче, щоб відкрити свій особистий кабінет:", view=CabinetButtonView())
@@ -636,6 +644,39 @@ async def check_and_grant_referral_bonus(guild: discord.Guild, inviter_id: int):
 
     except Exception as e:
         print("❌ Помилка при нарахуванні бонусів:", e)
+
+# =========================================================
+#         [БЛОК: ОТРИМАННЯ І ПЕРЕВІРКА СТАТУСУ ЗНИЖОК]
+# =========================================================
+async def get_user_discount_status(user_id: int) -> int:
+    try:
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT permanent_discount, used_discount_10, free_orders
+            FROM user_bonuses
+            WHERE user_id = %s
+        """, (user_id,))
+        row = cursor.fetchone()
+        cursor.close()
+        conn.close()
+
+        if not row:
+            return 0
+
+        permanent_discount, used_discount_10, free_orders = row
+
+        # Якщо є безкоштовні — вважаємо 100%
+        if free_orders > 0:
+            return 100
+        elif permanent_discount > 0 and not used_discount_10:
+            return permanent_discount
+        else:
+            return 0
+
+    except Exception as e:
+        print("❌ Помилка при перевірці знижки:", e)
+        return 0
 
 # ...............................................................
 #           [Блок: Використання знижки]
@@ -946,7 +987,7 @@ async def on_interaction(interaction: discord.Interaction):
             }
             selected = resource_names[cid]
 
-            discount = await get_user_discount_and_update(user.id)  
+            discount = await get_user_discount_status(user.id)  
 
             order_data = {
                 "customer": user.name,
@@ -1305,6 +1346,19 @@ async def on_interaction(interaction: discord.Interaction):
 
             # Оновлюємо статус
             await update_order_status_by_id(order_id, "Виконано", hunter_name=user.name)
+
+            # 💸 Застосування знижки після завершення замовлення
+            discount = await get_user_discount_and_update(customer_id)
+
+            conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE orders SET discount_percent = %s WHERE id = %s",
+                (discount, order_id)
+            )
+            conn.commit()
+            cursor.close()
+            conn.close()
 
             # Повідомлення в тому ж повідомленні
             await interaction.response.edit_message(
