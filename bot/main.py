@@ -1284,7 +1284,7 @@ async def on_interaction(interaction: discord.Interaction):
             )
 
             if notify_channel:
-                discount_notice = await get_discount_notice_text(order_id)
+                discount = await get_user_discount_status(customer.id)
 
                 if "камінь" in resource.lower():
                     message_text = (
@@ -1295,19 +1295,26 @@ async def on_interaction(interaction: discord.Interaction):
                 else:
                     message_text = (
                         f"{customer.mention}, 📦 Ваш **{resource}** вже в рюкзаку мисливця!\n"
-                        "📍 З Вами зараз звʼяжуться для узгодження місця зустрічі"
+                        "📍 З Вами зараз звʼяжуться для узгодження місця зустрічі."
                     )
 
-                if discount_notice:
-                    # Адаптуємо стиль для замовника
-                    discount_notice = (
-                        f"💸 Нагадування! На це замовлення діє знижка **{discount_notice.strip().split()[-1]}**.\n"
-                        f"Обов’язково скажіть про це мисливцю під час передачі ресурсу 😉"
+                if discount > 0:
+                    message_text += (
+                        f"\n\n💸 Нагадування! На це замовлення діє знижка **{discount}%**.\n"
+                        "Обов’язково скажіть про це мисливцю під час передачі ресурсу 😉"
                     )
-                    message_text += f"\n\n{discount_notice}"
-                    
-                # ⬇️ Надсилаємо та зберігаємо повідомлення
+
                 msg = await notify_channel.send(message_text)
+
+                async def delete_ready_message():
+                    await asyncio.sleep(300)
+                    try:
+                        await msg.delete()
+                    except Exception as e:
+                        print(f"⚠️ Не вдалося видалити повідомлення: {e}")
+
+                asyncio.create_task(delete_ready_message())
+
 
 
             # 💾 Зберігаємо user_ready_message_id
