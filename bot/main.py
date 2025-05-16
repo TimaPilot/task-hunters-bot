@@ -1301,21 +1301,10 @@ async def on_interaction(interaction: discord.Interaction):
                 if discount > 0:
                     message_text += (
                         f"\n\n💸 Нагадування! На це замовлення діє знижка **{discount}%**.\n"
-                        "Обов’язково скажіть про це мисливцю під час передачі ресурсу 😉"
+                        "Не забудьте про це при сплаті ресурсу 😉"
                     )
 
                 msg = await notify_channel.send(message_text)
-
-                async def delete_ready_message():
-                    await asyncio.sleep(300)
-                    try:
-                        await msg.delete()
-                    except Exception as e:
-                        print(f"⚠️ Не вдалося видалити повідомлення: {e}")
-
-                asyncio.create_task(delete_ready_message())
-
-
 
             # 💾 Зберігаємо user_ready_message_id
             try:
